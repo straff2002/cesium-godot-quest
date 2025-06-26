@@ -7,8 +7,9 @@ class NetworkUtils {
 
 public:
 
+	template <uint32_t N>
 #if defined(_WIN32) || defined(_WIN64)
-	template <uint32_t N> static constexpr auto SystemOpenURL(const char(&url)[N])
+	 static constexpr auto SystemOpenURL(const char(&url)[N])
 	{
 		const char* cmd = CompileTimeConcat("start ", url).data();
 		return system(cmd);

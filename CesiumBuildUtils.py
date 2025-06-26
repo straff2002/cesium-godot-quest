@@ -198,6 +198,7 @@ def clean_cesium_definitions():
 def install_additional_libs():
     print("Installing additional libraries")
     vcpkgPath = find_ezvcpkg_path()
+    print(f"Path to vcpkg: {vcpkgPath}")
     execExtension = ".exe" if os.name == OS_WIN else ""
     executable = "%s/%s" % (vcpkgPath, "vcpkg" + execExtension)
     subprocess.run([executable, "install", "curl:%s" % (determine_triplet())])
@@ -251,8 +252,8 @@ def find_in_dir_recursive(path: str, pattern: str) -> (bool, str):
 
 def find_ezvcpkg_path() -> str:
     global ezvcpkgFoundPath
-    if (ezvckpgFoundPath != None):
-        return ezvckpgFoundPath
+    if (ezvcpkgFoundPath != ""):
+        return ezvcpkgFoundPath
     # Search the home directory
     assumedPath = "%s.ezvcpkg" % (os.path.abspath(os.sep))
     print(f"Searching vcpkg at: {assumedPath}")
@@ -270,9 +271,9 @@ def find_ezvcpkg_path() -> str:
     subDirs.sort(reverse=True, key=lambda x: os.stat(
         "%s/%s" % (assumedPath, x)).st_ctime)
     latestDir = subDirs[0]
-    ezvckpgFoundPath = "%s/%s" % (assumedPath, latestDir)
-    print(f"Found ezvcpkg at {assumedPath}")
-    return ezvckpgFoundPath
+    ezvcpkgFoundPath = "%s/%s" % (assumedPath, latestDir)
+    print(f"Found ezvcpkg at {ezvcpkgFoundPath}")
+    return ezvcpkgFoundPath
 
 
 def clone_engine_repo_if_needed():
@@ -283,7 +284,7 @@ def scons_to_abs_path(path: str) -> str:
     return Dir(path).get_abspath()
 
 def find_ezvcpkg_include_path() -> str:
-    return f"{ezvckpgFoundPath}/installed/{determine_triplet()}/include"
+    return f"{find_ezvcpkg_path()}/installed/{determine_triplet()}/include"
 
 def get_root_dir() -> str:
     return currentRootDir
