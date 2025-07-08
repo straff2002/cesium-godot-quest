@@ -343,8 +343,8 @@ void CesiumGeoreference::_bind_methods()
 	ClassDB::bind_method(D_METHOD("get_origin_type"), &CesiumGeoreference::get_origin_type);
 	ClassDB::bind_method(D_METHOD("set_origin_type", "data_source"), &CesiumGeoreference::set_origin_type);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "origin_type", PROPERTY_HINT_ENUM, "Cartographic Origin,True Origin"), "set_origin_type", "get_origin_type");
-	BIND_ENUM_CONSTANT(static_cast<int64_t>(OriginType::CartographicOrigin));
-	BIND_ENUM_CONSTANT(static_cast<int64_t>(OriginType::TrueOrigin));
+	ClassDB::bind_integer_constant(get_class_static(), "OriginType", "CartographicOrigin", static_cast<int32_t>(OriginType::CartographicOrigin));
+	ClassDB::bind_integer_constant(get_class_static(), "OriginType", "TrueOrigin", static_cast<int32_t>(OriginType::TrueOrigin));
 }
 
 void CesiumGeoreference::_enter_tree() {	

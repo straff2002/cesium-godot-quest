@@ -1,5 +1,6 @@
 #include "Cesium3DTilesSelection/ViewState.h"
 #include "CesiumUtility/IntrusivePointer.h"
+#include "Models/CesiumDataSource.h"
 #include "glm/ext/vector_double3.hpp"
 #include <cstdint>
 #define SPDLOG_COMPILED_LIB
@@ -111,6 +112,11 @@ Cesium3DTileset::Cesium3DTileset()
 	this->m_signalingThreadPool.init(5);
 
 	Cesium3DTilesContent::registerAllTileContentTypes();
+}
+
+
+Cesium3DTileset::~Cesium3DTileset() {
+	// Trivial, but GCC complains if this is not in the implementation file
 }
 
 void Cesium3DTileset::set_maximum_screen_space_error(real_t error)
@@ -547,8 +553,8 @@ void Cesium3DTileset::_bind_methods()
 	ClassDB::bind_method(D_METHOD("get_data_source"), &Cesium3DTileset::get_data_source);
 	ClassDB::bind_method(D_METHOD("set_data_source", "data_source"), &Cesium3DTileset::set_data_source);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "data_source", PROPERTY_HINT_ENUM, "From Cesium Ion,From Url"), "set_data_source", "get_data_source");
-	BIND_ENUM_CONSTANT(CesiumDataSource::FromCesiumIon);
-	BIND_ENUM_CONSTANT(CesiumDataSource::FromUrl);
+	ClassDB::bind_integer_constant(get_class_static(), "CesiumDataSource", "FromCesiumIon", static_cast<int32_t>(CesiumDataSource::FromCesiumIon));
+	ClassDB::bind_integer_constant(get_class_static(), "CesiumDataSource", "FromUrl", static_cast<int32_t>(CesiumDataSource::FromUrl));
 	
 
 	ClassDB::bind_method(D_METHOD("set_url", URL_P_NAME), &Cesium3DTileset::set_url);
