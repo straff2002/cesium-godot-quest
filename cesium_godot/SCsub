@@ -152,8 +152,6 @@ libraries = [
     "absl_log_severity",
     "absl_log_internal_check_op",
     "absl_log_internal_nullguard",
-    "absl_strings",
-    "absl_strings_internal",
     "absl_str_format_internal",
     "absl_throw_delegate",
     "absl_statusor",
@@ -184,11 +182,8 @@ libraries = [
     "absl_random_internal_seed_material",
     "absl_random_seed_sequences",
     "absl_random_distributions",
-    "absl_string_view",
     "absl_debugging_internal",
     "absl_demangle_internal",
-    "absl_symbolize",
-    "absl_synchronization",
     "absl_stacktrace",
     "absl_examine_stack",
     "absl_failure_signal_handler",
@@ -218,11 +213,16 @@ libraries = [
     "absl_random_seed_gen_exception",
     "absl_scoped_set_env",
     "absl_strerror",
+    "absl_symbolize",
+    "absl_synchronization",
+    "absl_strings",
+    "absl_strings_internal",
+    "absl_string_view",
     "absl_base",
     "absl_malloc_internal",
     "absl_raw_logging_internal",
     "absl_die_if_null",
-    "absl_vlog_config_internal"    
+    "absl_vlog_config_internal"
 ]
 
 if (os.name == cesium_build_utils.OS_WIN):
