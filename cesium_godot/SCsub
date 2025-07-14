@@ -134,7 +134,7 @@ libraries = [
     "libssl",
     "meshoptimizer",
     "ada",
-    "litehtml",
+    "litehtml", # 35ecd69d05e72b0148204a576db62c2148084193
     "gumbo",
     "absl_log_internal_conditions",
     "absl_log_internal_message",
@@ -182,8 +182,6 @@ libraries = [
     "absl_random_internal_seed_material",
     "absl_random_seed_sequences",
     "absl_random_distributions",
-    "absl_debugging_internal",
-    "absl_demangle_internal",
     "absl_stacktrace",
     "absl_examine_stack",
     "absl_failure_signal_handler",
@@ -222,7 +220,11 @@ libraries = [
     "absl_malloc_internal",
     "absl_raw_logging_internal",
     "absl_die_if_null",
-    "absl_vlog_config_internal"
+    "absl_vlog_config_internal",
+    "absl_demangle_internal",
+    "absl_debugging_internal",
+    "absl_demangle_rust",
+    "absl_decode_rust_punycode"
 ]
 
 if (os.name == cesium_build_utils.OS_WIN):
@@ -235,7 +237,8 @@ elif (os.name == cesium_build_utils.OS_LINUX):
     libraries.extend([
         "crypto",
         "ssl",
-        "curl"
+        "curl",
+        "libz-ng"
     ])
     env.Append(LIBPATH=["/usr/lib/x86_64-linux-gnu"])
 
