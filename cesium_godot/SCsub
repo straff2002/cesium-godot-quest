@@ -135,21 +135,11 @@ libraries = [
     "meshoptimizer",
     "ada",
     "litehtml", # 35ecd69d05e72b0148204a576db62c2148084193
-    "gumbo",
-    "absl_log_internal_message",
-    "absl_log_flags",
-    "absl_log_globals",
-    "absl_log_internal_format",
-    "absl_log_internal_fnmatch",
-    "absl_log_internal_globals",
-    "absl_log_internal_log_sink_set",
-    "absl_log_internal_proto",
-    "absl_log_internal_structured_proto",
-    "absl_log_sink",
-    "absl_log_entry",
-    "absl_log_initialize",
-    "absl_log_severity",
+    "gumbo"
 ]
+
+# This was a nightmare, so I abstracted it into a function, the function itself is also a nightmare
+cesium_build_utils.link_abseil_libs(env)
 
 if (os.name == cesium_build_utils.OS_WIN):
     libraries.extend([
