@@ -73,82 +73,12 @@ def get_compile_target_definition(argsDict) -> str:
     exit(1)
 
 def link_abseil_libs(env):
-    loggingLibraries = [
-        "absl_log_internal_message",
-        "absl_log_flags",
-        "absl_log_globals",
-        "absl_log_internal_format",
-        "absl_log_internal_fnmatch",
-        "absl_log_internal_globals",
-        "absl_log_internal_log_sink_set",
-        "absl_log_internal_proto",
-        "absl_log_internal_structured_proto",
-        "absl_log_sink",
-        "absl_log_entry",
-        "absl_log_initialize",
-        "absl_log_severity"
-    ]
+    foundLibs: list[SCons.Node.FS.File] = env.Glob(f"{find_ezvcpkg_path()}/packages/abseil_{determine_triplet()}/lib/*absl*.a")
 
-    env.Append(LINKFLAGS=['-Wl,--start-group'], LIBS=loggingLibraries)
+    # Dark magic to strip the lib prefix and the file extension
+    foundLibs = [lib.name.replace("lib", "")[:-2] for lib in foundLibs]    
 
-    env.Append(LINKFLAGS=['-Wl,--end-group'])
-
-    rawLogDbg = [
-        "absl_raw_logging_internal",
-        "absl_debugging_internal",
-        "absl_stacktrace"
-    ]
-
-    env.Append(LINKFLAGS=['-Wl,--start-group'], LIBS=rawLogDbg)
-
-    env.Append(LINKFLAGS=['-Wl,--end-group'])
-
-
-    syncPrimitives = [
-        "absl_synchronization",
-        "absl_spinlock_wait",
-        "absl_base"
-    ]
-
-    env.Append(LINKFLAGS=['-Wl,--start-group'], LIBS=syncPrimitives)
-
-    env.Append(LINKFLAGS=['-Wl,--end-group'])
-
-
-    time = [
-        "absl_time_zone",
-        "absl_civil_time",
-        "absl_time"
-    ]
-
-    
-    env.Append(LINKFLAGS=['-Wl,--start-group'], LIBS=time)
-
-    env.Append(LINKFLAGS=['-Wl,--end-group'])
-
-    formatting = [
-        "absl_strings_internal",
-        "absl_strings",
-        "absl_str_format_internal",
-    ]
-
-    env.Append(LINKFLAGS=['-Wl,--start-group'], LIBS=formatting)
-
-    env.Append(LINKFLAGS=['-Wl,--end-group'])
-
-    hashing = [
-        "absl_hash",
-    ]
-
-    env.Append(LINKFLAGS=['-Wl,--start-group'], LIBS=hashing)
-
-    env.Append(LINKFLAGS=['-Wl,--end-group'])
-
-    utility = [
-        "absl_statusor",
-    ]
-
-    env.Append(LINKFLAGS=['-Wl,--start-group'], LIBS=utility)
+    env.Append(LINKFLAGS=['-Wl,--start-group'], LIBS=foundLibs)
 
     env.Append(LINKFLAGS=['-Wl,--end-group'])
 
