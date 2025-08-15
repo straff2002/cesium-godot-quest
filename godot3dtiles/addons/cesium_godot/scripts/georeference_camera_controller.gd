@@ -34,8 +34,8 @@ var last_hit_distance: float
 @onready
 var post_process_mesh = preload("res://addons/cesium_godot/visuals/post-process.tscn")
 
-# @onready
-# var skybox = preload("res://addons/cesium_godot/resources/rosendal_park_sunset_puresky_4k.hdr")
+@export
+var render_atmosphere : bool
 
 var atmosphere_manager: AtmosphereManager
 
@@ -55,12 +55,27 @@ func find_directional_light(node: Node) -> DirectionalLight3D:
 
 func _ready() -> void:
 	self.loaded = false
+
+	if (self.render_atmosphere):
+		self._load_atmosphere()
+	
 	self.near = ACCEPTABLE_NEAR_PLANE
 	if (self.globe_node.origin_type == CesiumGeoreference.OriginType.TrueOrigin):
 		var ecefPos : Vector3 = Vector3(self.globe_node.ecefX, self.globe_node.ecefY, self.globe_node.ecefZ)
 		var enginePos: Vector3 = self.globe_node.get_initial_tx_ecef_to_engine() * ecefPos
 		self.global_position = enginePos + self.globe_node.global_position
 
+
+func _load_atmosphere() -> void:
+	self.atmosphere_manager = AtmosphereManager.new()
+	self.atmosphere_manager.display_atmosphere = true
+	self.atmosphere_manager.globe = self.globe_node
+	var atmosphereNode = self.post_process_mesh.instantiate()
+	self.add_child(atmosphereNode)
+	self.atmosphere_manager.mesh_atmosphere = atmosphereNode
+	self.atmosphere_manager.camera = self
+	self.atmosphere_manager.sun = self.find_directional_light(self.get_tree().current_scene)
+	self.add_child(self.atmosphere_manager)
 
 func _physics_process(delta: float) -> void:
 	self.move_speed = self.adjusted_speed() + self.offset_speed
@@ -74,7 +89,11 @@ func _physics_process(delta: float) -> void:
 	camera_walk_ecef(-ecefDir.normalized())
 
 func _process(delta: float) -> void:
-	self.post_init()	
+	self.post_init()
+
+	if (self.render_atmosphere && self.atmosphere_manager == null):
+		self._load_atmosphere()
+	
 	self.surface_basis = self.calculate_surface_basis()
 	handle_input(delta)
 	self.update_camera_rotation()

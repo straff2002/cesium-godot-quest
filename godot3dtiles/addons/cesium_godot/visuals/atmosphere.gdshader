@@ -22,7 +22,7 @@ uniform float AtmosphereRadius;
 uniform float OceanRadius;
 uniform float PlanetRadius;
 uniform bool Cartographic = false;
-uniform float DistanceToSurface; // I wanna use this one instead of the spherical raycast
+uniform vec3 CameraWorldPos = vec3(0); // I wanna use this one instead of the spherical raycast
 
 // Paramaters
 uniform int NumInScatteringPoints;
@@ -154,10 +154,10 @@ void fragment() {
 
 	linear_depth *= viewLength;
 	float flipFactor = 1.0;
-	if (Cartographic) {
-		flipFactor = -1.0;
-	}
-	vec3 rayPos = CAMERA_POSITION_WORLD * flipFactor;
+	// if (Cartographic) {
+	// 	flipFactor = -1.0;
+	// }
+	vec3 rayPos = CameraWorldPos * flipFactor;
 	vec3 rayDir = normalize(viewVector);
 
 	vec2 ocean_hit = raySphere(PlanetCentre, OceanRadius, rayPos, rayDir);
