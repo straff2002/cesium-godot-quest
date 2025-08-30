@@ -79,10 +79,6 @@ CesiumAsync::Future<Cesium3DTilesSelection::TileLoadResultAndRenderResources> Go
 		glmPos = transformationMat[translationColumnIndex];
 		glmRot = glm::quat_cast(transformationMat);
 
-		// Then add the translation and rotation of the root node(?
-		// glmPos += *reinterpret_cast<const glm::dvec3*>(translationArray.data());
-		// glmRot += *reinterpret_cast<const glm::dquat*>(rotationArray.data());
-
 		Vector3 translation;
 		Quaternion rotation = CesiumMathUtils::from_glm_quat(glmRot);
 		CesiumGeoreference* geoReferenceNode = nullptr;
@@ -133,7 +129,7 @@ void* GodotPrepareRenderResources::prepareInMainThread(Tile& tile, void* pLoadTh
 	const CesiumGltf::Model& model = pRenderContent->getModel();
 	// Apply the transform if any
 	Cesium3DTile* instance = reinterpret_cast<Cesium3DTile*>(pLoadThreadResult);
-	// glm::dmat4 instanceXform = CesiumMathUtils::to_glm_mat4(instance->get_transform());
+
 	glm::dmat4 tileTransform = tile.getTransform();
 	tileTransform = CesiumGDModelLoader::apply_rtc_center(model, tileTransform);
 	tileTransform = CesiumGDModelLoader::apply_gltf_up_axis_transform(model, tileTransform);
