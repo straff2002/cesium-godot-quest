@@ -120,7 +120,6 @@ int DocumentContainer::get_default_font_size() const {
 
 
 void DocumentContainer::draw_image(litehtml::uint_ptr hdc, const litehtml::background_layer& layer, const std::string& url, const std::string& base_url) {
-	printf("BG image string: %s\n", url.c_str());
 	uint32_t hash = HashFnv1a(url.c_str());
 	if (this->m_imageCache.find(hash) == this->m_imageCache.end()) {
 		// WARN_PRINT("Image not found cache!");
@@ -137,7 +136,6 @@ void DocumentContainer::draw_image(litehtml::uint_ptr hdc, const litehtml::backg
 }
 
 void DocumentContainer::load_image(const char* src, const char* baseurl, bool redraw_on_ready) {
-	printf("Src: %s, Base url: %s\n", src, baseurl);
 	std::string fetchUrl = src;
 	if (this->m_imageCache.find(HashFnv1a(fetchUrl)) != this->m_imageCache.end()) {
 		return;

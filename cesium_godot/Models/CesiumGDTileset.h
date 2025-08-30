@@ -34,6 +34,16 @@ class CesiumGeoreference;
 class Cesium3DTile;
 #endif
 
+enum class EBoundingType {
+	None,
+	Sphere,
+	Box,
+	Region,
+	RegionWithLooseFittingHeights,
+	CellVolume,
+	CylinderRegion
+};
+
 class Cesium3DTileset : public Node3D
 {
 	GDCLASS(Cesium3DTileset, Node3D)
@@ -95,6 +105,8 @@ public:
 
 	void update_tileset(const Transform3D& cameraTransform);
 
+	void set_debug_boundig_volumes_func(const Callable& onTileDrawn);
+	
 	bool is_initial_loading_finished() const;
 
 	void add_overlay(CesiumIonRasterOverlay* overlay);
@@ -152,6 +164,7 @@ private:
 
 	BRThreadPool m_signalingThreadPool;
 
+	Callable m_debugVolumesFunction;
 protected:
 	static void _bind_methods();
 

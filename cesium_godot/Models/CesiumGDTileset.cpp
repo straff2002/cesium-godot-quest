@@ -1,8 +1,22 @@
+#include "Cesium3DTilesSelection/BoundingVolume.h"
 #include "Cesium3DTilesSelection/ViewState.h"
+#include "CesiumGeometry/BoundingCylinderRegion.h"
+#include "CesiumGeometry/BoundingSphere.h"
+#include "CesiumGeometry/OrientedBoundingBox.h"
+#include "CesiumGeospatial/BoundingRegion.h"
+#include "CesiumGeospatial/BoundingRegionWithLooseFittingHeights.h"
+#include "CesiumGeospatial/S2CellBoundingVolume.h"
 #include "CesiumUtility/IntrusivePointer.h"
 #include "Models/CesiumDataSource.h"
+#include "glm/ext/matrix_double4x4.hpp"
 #include "glm/ext/vector_double3.hpp"
+#include "godot_cpp/classes/geometry_instance3d.hpp"
+#include "godot_cpp/variant/basis.hpp"
+#include "godot_cpp/variant/dictionary.hpp"
+#include "godot_cpp/variant/quaternion.hpp"
+#include "godot_cpp/variant/transform3d.hpp"
 #include <cstdint>
+#include <type_traits>
 #define SPDLOG_COMPILED_LIB
 #include "Models/CesiumGlobe.h"
 #define SPDLOG_FMT_EXTERNAL
@@ -47,7 +61,6 @@ using namespace godot;
 #include "../Utils/CesiumMathUtils.h"
 #include "../Implementations/NetworkAssetAccessor.h"
 #include "../Implementations/GodotPrepareRenderResources.h"
-#include "CesiumHTTPRequestNode.h"
 #include "Cesium3DTilesContent/registerAllTileContentTypes.h"
 #include "../Utils/CesiumVariantHash.h"
 #include <glm/gtc/quaternion.hpp>
@@ -86,6 +99,89 @@ public:
 
 	Cesium3DTilesSelection::TilesetContentOptions contentOptions{};
 };
+
+inline void extract_properties_from_bounding_box(const CesiumGeometry::OrientedBoundingBox& box, Dictionary* refProperties, const CesiumGeoreference* georeference) {
+	const Transform3D& ecefToEngineXform = georeference->get_tx_ecef_to_engine();
+
+	Vector3 size = CesiumMathUtils::from_glm_vec3(box.getLengths());
+	Vector3 center = CesiumMathUtils::from_glm_vec3(box.getCenter());
+	const glm::mat3& halfAxes = box.getHalfAxes();
+
+	const glm::dvec3& basisX = halfAxes[0];
+	const glm::dvec3& basisY = halfAxes[1];
+	const glm::dvec3& basisZ = halfAxes[2];
+	Basis basisLocal = Basis(
+		CesiumMathUtils::from_glm_vec3(basisX),
+		CesiumMathUtils::from_glm_vec3(basisY),
+		CesiumMathUtils::from_glm_vec3(basisZ)
+	).orthonormalized();
+
+	Transform3D xform = ecefToEngineXform * Transform3D(basisLocal, center);
+
+	// Check if we are georeferenced with cartographic origin and substract the origin if so
+	if (georeference->get_origin_type() == static_cast<int32_t>(CesiumGeoreference::OriginType::CartographicOrigin)) {
+		const Vector3 relativeOrigin = ecefToEngineXform.xform(CesiumMathUtils::from_glm_vec3(georeference->get_ecef_position()));
+		xform.set_origin(xform.get_origin() - relativeOrigin);
+	}
+
+	refProperties->get_or_add("size", size);
+	refProperties->get_or_add("transform", xform);
+}
+
+inline void draw_debug_volume_from_variant(const Cesium3DTilesSelection::BoundingVolume& boundingVariant, const Callable& callback, const CesiumGeoreference* georeference) {
+	// Determine the type of bounding volume
+	size_t typeIndex = boundingVariant.index();
+	EBoundingType boundingType = static_cast<EBoundingType>(typeIndex + 1);
+	Dictionary properties{};
+
+	// Extract our rotation here
+	const Transform3D& ecefToEngineXform = georeference->get_tx_ecef_to_engine();
+
+	switch (boundingType) {
+        case EBoundingType::Sphere:
+        	{
+	    		const auto& sphere = std::get<CesiumGeometry::BoundingSphere>(boundingVariant);
+				Vector3 center = ecefToEngineXform.xform(CesiumMathUtils::from_glm_vec3(sphere.getCenter()));
+				if (georeference->get_origin_type() == static_cast<int32_t>(CesiumGeoreference::OriginType::CartographicOrigin)) {
+					const Vector3 relativeOrigin = ecefToEngineXform.xform(CesiumMathUtils::from_glm_vec3(georeference->get_ecef_position()));
+					center -= relativeOrigin;
+				}
+				properties.get_or_add("center", center);
+				properties.get_or_add("radius", sphere.getRadius());
+			}
+			break;
+        case EBoundingType::Box:
+        	{
+	        	const auto& box = std::get<CesiumGeometry::OrientedBoundingBox>(boundingVariant);
+				extract_properties_from_bounding_box(box, &properties, georeference);
+        	}
+			break;
+        case EBoundingType::RegionWithLooseFittingHeights:
+        	{
+        		const auto& boundingRegionLoose = std::get<CesiumGeospatial::BoundingRegionWithLooseFittingHeights>(boundingVariant);
+        		const CesiumGeometry::OrientedBoundingBox& box = boundingRegionLoose.getBoundingRegion().getBoundingBox();
+        		extract_properties_from_bounding_box(box, &properties, georeference);
+        	}
+        case EBoundingType::Region:
+	        	{
+		        	const auto& region = std::get<CesiumGeospatial::BoundingRegion>(boundingVariant);
+		        	const CesiumGeometry::OrientedBoundingBox& box = region.getBoundingBox();
+		        	extract_properties_from_bounding_box(box, &properties, georeference);
+	        	}
+        	break;
+        case EBoundingType::CellVolume:
+        case EBoundingType::CylinderRegion:
+      	default:
+      		{
+				ERR_PRINT("NOT YET IMPLEMENTED");
+      		}
+        	break;
+      		// Not identified, send in debug
+    }
+	
+	// Call the GDScript function
+	callback.call(static_cast<int32_t>(boundingType), properties);
+}
 
 Cesium3DTileset::Cesium3DTileset()
 {
@@ -298,6 +394,9 @@ void Cesium3DTileset::update_tileset(const Transform3D& cameraTransform)
 	}
 }
 
+void Cesium3DTileset::set_debug_boundig_volumes_func(const Callable& onTileDrawn) {
+	this->m_debugVolumesFunction = onTileDrawn;
+}
 
 bool Cesium3DTileset::is_initial_loading_finished() const
 {
@@ -453,6 +552,11 @@ void Cesium3DTileset::render_tile_as_node(const Cesium3DTilesSelection::Tile& ti
 		foundNode->set_name(itos(hash));
 	}
 	
+	if (!this->m_debugVolumesFunction.is_null()) {
+		// Get the xform for the current tile rotation
+		// Basis + Zero pos * ecef_engine_xform()
+		draw_debug_volume_from_variant(tile.getBoundingVolume(), this->m_debugVolumesFunction, this->m_georeference);
+	}
 	foundNode->show();
 }
 
@@ -578,8 +682,17 @@ void Cesium3DTileset::_bind_methods()
 #pragma region Public methods
 	ClassDB::bind_method(D_METHOD("is_initial_loading_finished"), &Cesium3DTileset::is_initial_loading_finished);
 	ClassDB::bind_method(D_METHOD("update_tileset", "camera_transform"), &Cesium3DTileset::update_tileset);
+	ClassDB::bind_method(D_METHOD("set_debug_bounding_volumes_func", "onTileDrawn"), &Cesium3DTileset::set_debug_boundig_volumes_func);
 	ClassDB::bind_method(D_METHOD("free_tile"), &Cesium3DTileset::free_tile);
 #pragma endregion
+
+	ClassDB::bind_integer_constant(get_class_static(), "BoundingType", "Box", static_cast<int32_t>(EBoundingType::Box));
+	ClassDB::bind_integer_constant(get_class_static(), "BoundingType", "CellVolume", static_cast<int32_t>(EBoundingType::CellVolume));
+	ClassDB::bind_integer_constant(get_class_static(), "BoundingType", "CylinderRegion", static_cast<int32_t>(EBoundingType::CylinderRegion));
+	ClassDB::bind_integer_constant(get_class_static(), "BoundingType", "Region", static_cast<int32_t>(EBoundingType::Region));
+	ClassDB::bind_integer_constant(get_class_static(), "BoundingType", "RegionWithLooseFittingHeights", static_cast<int32_t>(EBoundingType::RegionWithLooseFittingHeights));
+	ClassDB::bind_integer_constant(get_class_static(), "BoundingType", "Sphere", static_cast<int32_t>(EBoundingType::Sphere));
+
 }
 
 void Cesium3DTileset::_get_property_list(List<PropertyInfo>* properties) const

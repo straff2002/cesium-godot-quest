@@ -25,12 +25,10 @@ void Cesium3DTile::set_original_position(const glm::dvec3& position) {
 	this->m_originalPosition = position;
 }
 
-
 void Cesium3DTile::apply_position_on_globe(const glm::dvec3& engineOrigin) {
 	glm::dvec3 globalPos = this->m_originalPosition - engineOrigin;
 	this->set_global_position(CesiumMathUtils::from_glm_vec3(globalPos));
 }
-
 
 void Cesium3DTile::generate_tile_collision() {
 	// Get our static body and add it as a child of the mesh
@@ -47,7 +45,6 @@ void Cesium3DTile::generate_tile_collision() {
 	staticBody->set_owner(owner);
 	collisionShape->set_owner(owner);
 }
-
 
 void Cesium3DTile::add_metadata(const CesiumGltf::Model* model, const CesiumGltf::ExtensionModelExtStructuralMetadata* metadata) {
 	if (metadata == nullptr) return;
@@ -90,7 +87,6 @@ Ref<ConcavePolygonShape3D> Cesium3DTile::create_trimesh_shape_inverse_winding() 
 	return shape;
 }
 
-
 Node* Cesium3DTile::create_collision_node_custom_trimesh() {
 	Ref<ConcavePolygonShape3D> shape = this->create_trimesh_shape_inverse_winding();
 	if (shape.is_null()) {
@@ -104,7 +100,6 @@ Node* Cesium3DTile::create_collision_node_custom_trimesh() {
 	staticBody->add_child(collisionShape, true);
 	return staticBody;
 }
-
 
 const Dictionary& Cesium3DTile::get_metadata_table(int32_t index) const {
 	return this->m_metadata.get_table(index);

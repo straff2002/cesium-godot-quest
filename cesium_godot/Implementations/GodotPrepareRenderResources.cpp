@@ -54,6 +54,7 @@ CesiumAsync::Future<Cesium3DTilesSelection::TileLoadResultAndRenderResources> Go
 
 		const CesiumGltf::Node &rootNode = model->nodes.at(0);
 
+		const std::vector<double> &translationArray = rootNode.translation;
 		const std::vector<double> &rotationArray = rootNode.rotation;
 		const std::vector<double> &scaleArray = rootNode.scale;
 
@@ -73,19 +74,10 @@ CesiumAsync::Future<Cesium3DTilesSelection::TileLoadResultAndRenderResources> Go
 		// Applies for tilesets that 
 		constexpr int32_t worldTerrainId = 1;
 		constexpr int32_t osmBuildingsId = 96188;
-		// Applies for osmBuildings and world terrain
-		int32_t currAssetId = this->m_tileset->get_ion_asset_id();
-		if (this->m_tileset->get_data_source() == CesiumDataSource::FromCesiumIon && (currAssetId == worldTerrainId || currAssetId == osmBuildingsId)) {
-			constexpr int32_t translationColumnIndex = 3;
-			glmPos = transformationMat[translationColumnIndex];
-			glmRot = glm::quat_cast(transformationMat);
-		}
-		else {
-			const std::vector<double> &translationArray = rootNode.translation;
-			const std::vector<double> &rotationArray = rootNode.rotation;
-			glmPos = *reinterpret_cast<const glm::dvec3*>(translationArray.data());
-			glmRot = *reinterpret_cast<const glm::dquat*>(rotationArray.data());
-		}
+
+		constexpr int32_t translationColumnIndex = 3;
+		glmPos = transformationMat[translationColumnIndex];
+		glmRot = glm::quat_cast(transformationMat);
 
 		Vector3 translation;
 		Quaternion rotation = CesiumMathUtils::from_glm_quat(glmRot);
@@ -137,7 +129,7 @@ void* GodotPrepareRenderResources::prepareInMainThread(Tile& tile, void* pLoadTh
 	const CesiumGltf::Model& model = pRenderContent->getModel();
 	// Apply the transform if any
 	Cesium3DTile* instance = reinterpret_cast<Cesium3DTile*>(pLoadThreadResult);
-	// glm::dmat4 instanceXform = CesiumMathUtils::to_glm_mat4(instance->get_transform());
+
 	glm::dmat4 tileTransform = tile.getTransform();
 	tileTransform = CesiumGDModelLoader::apply_rtc_center(model, tileTransform);
 	tileTransform = CesiumGDModelLoader::apply_gltf_up_axis_transform(model, tileTransform);

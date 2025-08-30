@@ -3,7 +3,6 @@
 #include "../Models/LocalAssetRequest.h"
 #include "CesiumAsync/AsyncSystem.h"
 #include "godot_cpp/classes/engine.hpp"
-#include "godot_cpp/templates/vector.hpp"
 #include "godot_cpp/variant/packed_byte_array.hpp"
 #include <cstdint>
 #include <memory>
