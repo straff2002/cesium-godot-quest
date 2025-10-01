@@ -138,7 +138,7 @@ void CesiumGeoreference::set_scale_factor(real_t factor)
 	this->m_scaleFactor = factor;
 }
 
-glm::dvec3 CesiumGeoreference::get_ecef_position() const
+const glm::dvec3& CesiumGeoreference::get_ecef_position() const
 {
 	return this->m_ecefPosition;
 }
@@ -227,10 +227,9 @@ void CesiumGeoreference::move_origin(glm::dvec3 previousPosition)
 	// Move all the tilesets
 	// const glm::dvec3 prevEnginePos = CesiumMathUtils::ecef_to_engine(previousPosition);
 	const glm::dvec3 currEnginePos = CesiumMathUtils::ecef_to_engine(this->m_ecefPosition);
-	const double* dArrPos = reinterpret_cast<const double*>(&currEnginePos);
 	for (Cesium3DTileset* tileset : this->m_trackedTilesets) {
 		// Now we can recalculate the same positions
-		tileset->move_origin(dArrPos);
+		tileset->move_origin(currEnginePos);
 	}
 }
 

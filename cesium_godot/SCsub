@@ -26,6 +26,7 @@ includePaths = []
 sources = [
     cesium_build_utils.get_root_dir() + "/register_types.cpp",
     cesium_build_utils.get_root_dir() + "/Models/CesiumGDTileset.cpp",
+    cesium_build_utils.get_root_dir() + "/Models/GeoreferencedNode.cpp",
     cesium_build_utils.get_root_dir() + "/Models/Cesium3DTile.cpp",
     cesium_build_utils.get_root_dir() + "/Models/TileMetadata.cpp",
     cesium_build_utils.get_root_dir() + "/Models/CesiumGDPanel.cpp",

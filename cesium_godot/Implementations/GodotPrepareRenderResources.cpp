@@ -89,6 +89,9 @@ CesiumAsync::Future<Cesium3DTilesSelection::TileLoadResultAndRenderResources> Go
 			translation *= scaleFactor;
 		}
 
+		// Avoid adding as child in the worker thread
+		instance->set_tileset_no_reparent(this->m_tileset);
+
 		if (geoReferenceNode->get_origin_type() == (int32_t)CesiumGeoreference::OriginType::CartographicOrigin) {
 			// Save this for use later
 			instance->set_original_position(glmPos);
