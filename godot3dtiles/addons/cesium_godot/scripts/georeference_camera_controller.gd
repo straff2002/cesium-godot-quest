@@ -120,7 +120,6 @@ func calculate_surface_basis() -> Basis:
 	var up : Vector3 = self.globe_node.get_normal_at_surface_pos(engineToEcefTransform)
 	var reference = -self.global_basis.z
 	
-	var debug_position : Vector3 = self.global_position + (reference * 10)
 	var dotProduct := up.dot(reference)
 	
 	if (dotProduct > 0.99):

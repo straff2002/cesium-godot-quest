@@ -8,6 +8,7 @@
 #include "CesiumGeospatial/S2CellBoundingVolume.h"
 #include "CesiumUtility/IntrusivePointer.h"
 #include "Models/CesiumDataSource.h"
+#include "Models/GeoreferencedNode.h"
 #include "glm/ext/matrix_double4x4.hpp"
 #include "glm/ext/vector_double3.hpp"
 #include "godot_cpp/classes/geometry_instance3d.hpp"
@@ -430,16 +431,16 @@ bool Cesium3DTileset::is_georeferenced(CesiumGeoreference** outRef) const
 }
 
 
-void Cesium3DTileset::move_origin(const double enginePosRaw[3]) {
-	const glm::dvec3& enginePos = *reinterpret_cast<const glm::dvec3*>(enginePosRaw);
+void Cesium3DTileset::move_origin(const glm::dvec3& enginePos) {
 	// Get all tiles
 	int32_t childCount = this->get_child_count();
 	for(int32_t i = 0; i < childCount; i++) {
-		Cesium3DTile* currTile = Object::cast_to<Cesium3DTile>(this->get_child(i));
-		if (currTile == nullptr) {
+		// This applies to user meshes and 3D tiles alike
+		GeoreferencedMesh* currMesh = Object::cast_to<GeoreferencedMesh>(this->get_child(i));
+		if (currMesh == nullptr) {
 			continue;
 		}
-		currTile->apply_position_on_globe(enginePos);
+		currMesh->apply_position_on_globe(enginePos);
 	}
 }
 
@@ -762,13 +763,23 @@ void Cesium3DTileset::_ready() {
 	Godot3DTiles::AssetManipulation::update_camera_tilesets(foundCamera);
 }
 
+
+CesiumGeoreference* Cesium3DTileset::get_georeference_node() const {
+	return this->m_georeference;
+}
+
 void Cesium3DTileset::_enter_tree() {
-	if (!is_editor_mode()) return;
+	if (!is_editor_mode()) {
+		// TODO: Replace this, it's bad code lol
+		this->is_georeferenced(&this->m_georeference);
+		return;
+	}
 	CesiumGeoreference* globe = Godot3DTiles::AssetManipulation::find_or_create_globe(this);
 	if (globe == nullptr) {
 		return;
 	}
 	//Parent to the globe
+	this->m_georeference = globe;
 	this->reparent(globe, true);
 	this->set_rotation_degrees(Vector3(90.0, 0.0, 0.0));
 	this->set_owner(globe->get_parent_node_3d());

@@ -1,7 +1,6 @@
 #ifndef CESIUM_GD_TILESET_H
 #define CESIUM_GD_TILESET_H
 
-#include "Models/Cesium3DTile.h"
 #if defined(CESIUM_GD_MODULE)
 #include "scene/3d/node_3d.h"
 #elif defined(CESIUM_GD_EXT)
@@ -29,10 +28,7 @@ class CesiumIonRasterOverlay;
 
 class CesiumGeoreference;
 
-#if defined(CESIUM_GD_EXT)
-#elif defined(CESIUM_GD_MODULE)
 class Cesium3DTile;
-#endif
 
 enum class EBoundingType {
 	None,
@@ -115,8 +111,10 @@ public:
 	
 	bool is_georeferenced(CesiumGeoreference** outRef) const;
 
-	void move_origin(const double enginePos[3]);
+	void move_origin(const glm::dvec3& enginePos);
 
+	CesiumGeoreference* get_georeference_node() const;
+	
 	void _enter_tree() override;
 
 	void _ready() override;

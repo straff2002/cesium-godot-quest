@@ -5,6 +5,7 @@
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/ext/vector_double3.hpp"
 #include "glm/trigonometric.hpp"
+#include "godot_cpp/core/error_macros.hpp"
 #include "godot_cpp/variant/string.hpp"
 #include "godot_cpp/variant/transform3d.hpp"
 #include "godot_cpp/variant/vector2.hpp"
@@ -90,7 +91,8 @@ public:
 	}
 
 	static inline glm::dvec3 engine_to_ecef(const Vector3& vec) {
-		return glm::dvec3();
+		ERR_FAIL_V_MSG(glm::dvec3(), "engine_to_ecef on MathUtils NOT YET IMPLEMENTED!");
+		// return glm::dvec3();
 	}
 
 	static inline glm::dmat4 to_glm_mat4(const Transform3D& t) {

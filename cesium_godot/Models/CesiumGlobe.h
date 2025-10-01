@@ -69,7 +69,7 @@ public:
 
 	void set_scale_factor(real_t factor);
 	
-	glm::dvec3 get_ecef_position() const;
+	const glm::dvec3& get_ecef_position() const;
 
 	void set_latitude(double lat);
 
