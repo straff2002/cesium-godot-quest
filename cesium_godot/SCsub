@@ -94,6 +94,8 @@ includePaths.append(vcpkgIncludePath)
 
 env.Append(CPPPATH=includePaths)
 
+vcpkgLibPath = cesium_build_utils.find_ezvcpkg_lib_path()
+env.Prepend(LIBPATH=vcpkgLibPath)
 
 root_dir_native = cesium_build_utils.get_root_dir_native()
 current_build_config = ""

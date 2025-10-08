@@ -307,6 +307,9 @@ def scons_to_abs_path(path: str) -> str:
 def find_ezvcpkg_include_path() -> str:
     return f"{find_ezvcpkg_path()}/installed/{determine_triplet()}/include"
 
+def find_ezvcpkg_lib_path() -> str:
+    return f"{find_ezvcpkg_path()}/installed/{determine_triplet()}/lib"
+
 def get_root_dir() -> str:
     return currentRootDir
 
