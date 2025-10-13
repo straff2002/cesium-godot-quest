@@ -62,7 +62,9 @@ func get_oblate_radius(globe: CesiumGeoreference) -> float:
 func update_settings():
 	var source_viewport := get_viewport()
 	const radius : float = 6378137.0
-	atmosphere_settings.set_properties(material, radius)
+	var oblate_radius: float = get_oblate_radius(self.globe)
+	#atmosphere_settings.set_properties(material, radius)
+	atmosphere_settings.set_properties(material, oblate_radius)
 	atmosphere_settings.atmosphere_scale = 0.1
 
 	# Get the camera's position based on its ECEF coordinates
@@ -73,7 +75,8 @@ func update_settings():
 	material.set_shader_parameter("DistanceToSurface", self.camera.last_hit_distance)
 	material.set_shader_parameter("PlanetCentre", centre)
 	material.set_shader_parameter("CameraWorldPos", cam_relative_engine_pos)
-	material.set_shader_parameter("OceanRadius", radius)
+	#atmosphere_settings.set_properties("OceanRadius", radius)
+	material.set_shader_parameter("OceanRadius", oblate_radius)
 	material.set_shader_parameter("ScreenWidth", source_viewport.size.x)
 	material.set_shader_parameter("ScreenHeight", source_viewport.size.y)
 
