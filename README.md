@@ -86,8 +86,6 @@ The plugin supports double precision mode for more accurate true origin navigati
 
 * From the repository:
 
-  * Copy `godot3dtiles/bin/` folder to your project root
-
   * Copy `godot3dtiles/addons/` folder to your project root
 
 Your project structure should look like:
@@ -96,10 +94,13 @@ Your project structure should look like:
 my_project/
 ├── addons/
 │   └── cesium_godot/
+│       ├── lib/
 │       ├── panels/
+│       ├── resources/
 │       ├── scripts/
-│       └── visuals/
-├── bin/
+│       ├── visuals/
+│       ├── plugin.cfg
+│       └── Godot3DTiles.gdextension
 └── project.godot
 ```
 
