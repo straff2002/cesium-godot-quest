@@ -169,15 +169,6 @@ Camera3D* Godot3DTiles::AssetManipulation::find_georef_cam(Node* rootNode) {
 		return Object::cast_to<Camera3D>(rootNode);
 	}
 
-	// Script* currScript = Object::cast_to<Script>(rootNode->get_script());
-	// if (currScript != nullptr) {
-	// 	String scriptPath =	currScript->get_path();	
-	// 	// Check if the script path matches
-	// 	if (scriptPath == DYNAMIC_CAM_SCRIPT) {
-	// 		return Object::cast_to<Camera3D>(rootNode);
-	// 	}
-	// }
-	
 	int32_t childCount = rootNode->get_child_count();
 	for (int32_t i = 0; i < childCount; i++) {
 		Node* currChild = rootNode->get_child(i);
