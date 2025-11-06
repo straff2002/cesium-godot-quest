@@ -78,7 +78,7 @@ The plugin supports double precision mode for more accurate true origin navigati
 ## Setting Up a Project
 ### Create New Godot Project
 
-* Use Godot 4.5 or newer (recommended)
+* Use Godot 4.1 or newer
 
 * Choose "Forward+" renderer in project settings
 

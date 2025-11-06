@@ -137,8 +137,8 @@ def clone_bindings_repo_if_needed():
         BINDINGS_DIR,
         "Godot CPP Bindings",
         "https://github.com/godotengine/godot-cpp",
-        "godot-4.5-stable",
-        "6388e26dd8a42071f65f764a3ef3d9523dda3d6e",
+        "godot-4.1.4-stable",
+        "4b0ee133274d67687b6003b8d5fdaf7b79cf4921",
     )
 
 
