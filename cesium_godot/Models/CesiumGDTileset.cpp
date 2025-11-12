@@ -13,6 +13,7 @@
 #include "glm/ext/vector_double3.hpp"
 #include "godot_cpp/classes/geometry_instance3d.hpp"
 #include "godot_cpp/variant/basis.hpp"
+#include "godot_cpp/variant/callable.hpp"
 #include "godot_cpp/variant/dictionary.hpp"
 #include "godot_cpp/variant/quaternion.hpp"
 #include "godot_cpp/variant/transform3d.hpp"
@@ -125,8 +126,12 @@ inline void extract_properties_from_bounding_box(const CesiumGeometry::OrientedB
 		xform.set_origin(xform.get_origin() - relativeOrigin);
 	}
 
-	refProperties->get_or_add("size", size);
-	refProperties->get_or_add("transform", xform);
+	if( !refProperties->has("size") ) {
+		(*refProperties)["size"] = size;
+	}
+	if( !refProperties->has("transform") ) {
+		(*refProperties)["transform"] = xform;
+	}
 }
 
 inline void draw_debug_volume_from_variant(const Cesium3DTilesSelection::BoundingVolume& boundingVariant, const Callable& callback, const CesiumGeoreference* georeference) {
@@ -147,8 +152,12 @@ inline void draw_debug_volume_from_variant(const Cesium3DTilesSelection::Boundin
 					const Vector3 relativeOrigin = ecefToEngineXform.xform(CesiumMathUtils::from_glm_vec3(georeference->get_ecef_position()));
 					center -= relativeOrigin;
 				}
-				properties.get_or_add("center", center);
-				properties.get_or_add("radius", sphere.getRadius());
+				if( !properties.has("center") ){
+					properties["center"] = center;
+				}
+				if( !properties.has("radius") ){
+					properties["radius"] = sphere.getRadius();
+				}
 			}
 			break;
         case EBoundingType::Box:
@@ -181,7 +190,10 @@ inline void draw_debug_volume_from_variant(const Cesium3DTilesSelection::Boundin
     }
 	
 	// Call the GDScript function
-	callback.call(static_cast<int32_t>(boundingType), properties);
+	godot::Array callback_args;
+	callback_args.push_back(static_cast<int32_t>(boundingType));
+	callback_args.push_back(properties);
+	callback.callv(callback_args);
 }
 
 Cesium3DTileset::Cesium3DTileset()
@@ -379,18 +391,17 @@ void Cesium3DTileset::update_tileset(const Transform3D& cameraTransform)
 		cameraDirection,
 		CesiumMathUtils::to_glm_dvec3(cameraUp),
 		CesiumMathUtils::to_glm_vec2(viewportSize),
-		horizontalFOV * 1.2f,
-		verticalFOV * 1.2f
+		horizontalFOV,
+		verticalFOV
 	);
 
 	const Cesium3DTilesSelection::ViewUpdateResult& updateResult = this->m_activeTileset->updateViewGroup(this->m_activeTileset->getDefaultViewGroup(), { currentViewState });
 	this->m_activeTileset->loadTiles();
 
-	for (CesiumUtility::IntrusivePointer<Cesium3DTilesSelection::Tile> tile : updateResult.tilesToRenderThisFrame) {
+	for (CesiumUtility::IntrusivePointer<const Cesium3DTilesSelection::Tile> tile : updateResult.tilesToRenderThisFrame) {
 		this->render_tile_as_node(*tile);
 	}
-
-	for (CesiumUtility::IntrusivePointer<Cesium3DTilesSelection::Tile> tile : updateResult.tilesFadingOut) {
+	for (CesiumUtility::IntrusivePointer<const Cesium3DTilesSelection::Tile> tile : updateResult.tilesFadingOut) {
 		despawn_tile(*tile);
 	}
 }

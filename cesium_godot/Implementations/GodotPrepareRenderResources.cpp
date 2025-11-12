@@ -92,10 +92,8 @@ CesiumAsync::Future<Cesium3DTilesSelection::TileLoadResultAndRenderResources> Go
 		// Avoid adding as child in the worker thread
 		instance->set_tileset_no_reparent(this->m_tileset);
 
-		if (geoReferenceNode->get_origin_type() == (int32_t)CesiumGeoreference::OriginType::CartographicOrigin) {
-			// Save this for use later
-			instance->set_original_position(glmPos);
-		}
+		// Save this for use later
+		instance->set_original_position(glmPos);
 
 		Vector3 eulerAngles = rotation.get_euler();
 

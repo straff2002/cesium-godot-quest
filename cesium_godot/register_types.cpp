@@ -47,8 +47,6 @@ void initialize_cesium_godot_module(ModuleInitializationLevel p_level) {
 	ClassDB::register_class<Cesium3DTile>();
 	
 	ClassDB::register_class<CesiumGDCreditSystem>(true);
-	ClassDB::bind_integer_constant("CesiumGeoreference", "OriginType", "CartographicOrigin", (int32_t)CesiumGeoreference::OriginType::CartographicOrigin);
-	ClassDB::bind_integer_constant("CesiumGeoreference", "OriginType", "TrueOrigin", (int32_t)CesiumGeoreference::OriginType::TrueOrigin);
 }
 
 void uninitialize_cesium_godot_module(ModuleInitializationLevel p_level) {

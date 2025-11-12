@@ -69,9 +69,9 @@ Ref<ConcavePolygonShape3D> Cesium3DTile::create_trimesh_shape_inverse_winding() 
 
 	for (int i = 0; i < facePoints.size(); i += 3) {
 		// Let's reverse it
-		facePoints.set(i, faces.get(i + 2));
-		facePoints.set(i + 1, faces.get(i + 1));
-		facePoints.set(i + 2, faces.get(i));
+		facePoints[i]     = faces[i + 2];
+		facePoints[i + 1] = faces[i + 1];
+		facePoints[i + 2] = faces[i];
 	}
 
 	Ref<ConcavePolygonShape3D> shape = memnew(ConcavePolygonShape3D);

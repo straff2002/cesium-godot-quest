@@ -5,14 +5,18 @@
 #include "godot_cpp/core/class_db.hpp"
 
 
-void CesiumGDAssetBuilder::instantiate_tileset(int32_t assetId, const String& assetType) {
+void CesiumGDAssetBuilder::instantiate_tileset(int32_t assetId, const String& assetType, const String& assetName) {
 	//Create a new Globe
-	Godot3DTiles::AssetManipulation::instantiate_tileset(this, assetId, assetType);	
+	Godot3DTiles::AssetManipulation::instantiate_tileset(this, assetId, assetType, assetName);
 }
 	
 
 void CesiumGDAssetBuilder::instantiate_dynamic_cam() {
   Godot3DTiles::AssetManipulation::instantiate_dynamic_cam(this);
+}
+
+void CesiumGDAssetBuilder::instantiate_orbit_cam() {
+  Godot3DTiles::AssetManipulation::instantiate_orbit_cam(this);
 }
 
 Variant CesiumGDAssetBuilder::get_georeference_camera_script() const {
@@ -33,6 +37,7 @@ Array CesiumGDAssetBuilder::find_all_tilesets() {
 
 void CesiumGDAssetBuilder::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("instantiate_dynamic_cam"), &CesiumGDAssetBuilder::instantiate_dynamic_cam);
+	ClassDB::bind_method(D_METHOD("instantiate_orbit_cam"), &CesiumGDAssetBuilder::instantiate_orbit_cam);
 	ClassDB::bind_method(D_METHOD("instantiate_tileset", "assetId", "assetType"), &CesiumGDAssetBuilder::instantiate_tileset);
 	ClassDB::bind_method(D_METHOD("find_or_create_globe"), &CesiumGDAssetBuilder::find_or_create_globe);	
 

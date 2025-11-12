@@ -18,7 +18,8 @@
 
 const char* CESIUM_GLOBE_NAME = "CesiumGeoreference";
 const char* CESIUM_TILESET_NAME = "Cesium3DTileset";
-const char* GEOREF_CAM_SCRIPT = "res://addons/cesium_godot/scripts/georeference_camera_controller.gd";
+const char* DYNAMIC_CAM_SCRIPT = "res://addons/cesium_godot/scripts/camera_controllers/CesiumDynamicCamera.gd";
+const char* ORBIT_CAM_SCRIPT = "res://addons/cesium_godot/scripts/camera_controllers/CesiumOrbitCamera.gd";
 
 const char* NO_ROOT_MSG = "No root node found in scene, add a Node3D to your scene in order to add Cesium Assets";
 
@@ -86,7 +87,7 @@ Node* Godot3DTiles::AssetManipulation::get_root_of_edit_scene(Node* baseNode) {
 }
 
 
-void Godot3DTiles::AssetManipulation::instantiate_tileset(Node* baseNode, int32_t assetId, const String& assetType) {
+void Godot3DTiles::AssetManipulation::instantiate_tileset(Node* baseNode, int32_t assetId, const String& assetType, const String& assetName) {
 	Node* root = get_root_of_edit_scene(baseNode);
 	ERR_FAIL_COND_MSG(root == nullptr, NO_ROOT_MSG);
 	Cesium3DTileset* tileset = memnew(Cesium3DTileset);
@@ -101,6 +102,7 @@ void Godot3DTiles::AssetManipulation::instantiate_tileset(Node* baseNode, int32_
 	
 	// If the asset type is terrain or 3D tiles, just set the asset id
 	if (assetType == "3DTILES" || assetType == "TERRAIN") {
+		tileset->set_name(assetName);
 		tileset->set_ion_asset_id(assetId);
 		return;
 	}
@@ -114,27 +116,43 @@ void Godot3DTiles::AssetManipulation::instantiate_tileset(Node* baseNode, int32_
 	// In the future we might wanna check if the tileset already exists, but I do not want to assume too much rn
 	constexpr int64_t worldTerrainId = 1; 
 	tileset->set_ion_asset_id(worldTerrainId);
+	tileset->set_name("Cesium World Terrain");
 
 	rasterOverlay = memnew(CesiumIonRasterOverlay);
 	rasterOverlay->set_asset_id(assetId);
 	tileset->add_child(rasterOverlay, true);
 	rasterOverlay->set_owner(root);
+	rasterOverlay->set_name(assetName);
 }
 
 
 void Godot3DTiles::AssetManipulation::instantiate_dynamic_cam(Node* baseNode) {
-	const char* trueOriginCameraScript = "res://addons/cesium_godot/scripts/cesium_camera_controller.gd";
 	Node* root = get_root_of_edit_scene(baseNode);
 	ERR_FAIL_COND_MSG(root == nullptr, NO_ROOT_MSG);
 	CesiumGeoreference* globe = find_or_create_globe(baseNode);
 	Camera3D* camera = memnew(Camera3D);
 	root->add_child(camera, true);
 	camera->set_owner(root);
-	auto originType = static_cast<CesiumGeoreference::OriginType>(globe->get_origin_type());
-	Ref<Resource> script = ResourceLoader::get_singleton()->load(GEOREF_CAM_SCRIPT, "Script");
+	Ref<Resource> script = ResourceLoader::get_singleton()->load(DYNAMIC_CAM_SCRIPT, "Script");
 	camera->set_script(script);
 	camera->set("tilesets", find_all_tilesets(baseNode));
 	camera->set("globe_node", globe);
+	camera->set_name("CesiumDynamicCam");
+}
+
+void Godot3DTiles::AssetManipulation::instantiate_orbit_cam(Node* baseNode) {
+	Node* root = get_root_of_edit_scene(baseNode);
+	ERR_FAIL_COND_MSG(root == nullptr, NO_ROOT_MSG);
+	CesiumGeoreference* globe = find_or_create_globe(baseNode);
+	Camera3D* camera = memnew(Camera3D);
+	root->add_child(camera, true);
+	camera->set_owner(root);
+	Ref<Resource> script = ResourceLoader::get_singleton()->load(ORBIT_CAM_SCRIPT, "Script");
+	camera->set_script(script);
+	camera->set("tilesets", find_all_tilesets(baseNode));
+	camera->set("globe_node", globe);
+	camera->set("target", globe);
+	camera->set_name("CesiumOrbitCam");
 }
 
 
@@ -146,15 +164,11 @@ Cesium3DTileset* find_first_tileset(Node* baseNode) {
 
 
 Camera3D* Godot3DTiles::AssetManipulation::find_georef_cam(Node* rootNode) {
-	Script* currScript = Object::cast_to<Script>(rootNode->get_script());
-	if (currScript != nullptr) {		
-		String scriptPath =	currScript->get_path();	
-		// Check if the script path matches
-		if (scriptPath == GEOREF_CAM_SCRIPT) {
-			return Object::cast_to<Camera3D>(rootNode);
-		}
+	Variant georef = rootNode->get("globe_node");
+	if (georef.get_type() != Variant::NIL) {
+		return Object::cast_to<Camera3D>(rootNode);
 	}
-	
+
 	int32_t childCount = rootNode->get_child_count();
 	for (int32_t i = 0; i < childCount; i++) {
 		Node* currChild = rootNode->get_child(i);

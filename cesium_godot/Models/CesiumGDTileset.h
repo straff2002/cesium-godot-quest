@@ -7,6 +7,7 @@
 #include "godot_cpp/core/property_info.hpp"
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
+#include <godot_cpp/variant/callable.hpp>
 using namespace godot;
 #endif
 

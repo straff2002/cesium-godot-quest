@@ -38,7 +38,7 @@ jobs:
       run: scons platform=windows arch=x64 compileTarget=extension target=template_release buildCesium=true
 
     - name: Verify Build Output
-      run: dir godot3dtiles/bin
+      run: if ((gci godot3dtiles/addons/cesium_godot/lib -Filter "*.dll").Count -lt 1) { exit 1 }
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4

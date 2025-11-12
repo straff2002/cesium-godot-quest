@@ -346,9 +346,14 @@ void CesiumGeoreference::_bind_methods()
 	ClassDB::bind_integer_constant(get_class_static(), "OriginType", "TrueOrigin", static_cast<int32_t>(OriginType::TrueOrigin));
 }
 
-void CesiumGeoreference::_enter_tree() {	
-		this->m_initialOriginTransform = this->get_global_transform();
+void CesiumGeoreference::_enter_tree() {
+	this->m_initialOriginTransform = this->get_global_transform();
+	this->set_rotation_degrees(Vector3(-90.0, 0.0, 0.0));
+	if (this->m_originType == OriginType::CartographicOrigin) {
 		this->m_originalEcefPosition = this->m_ecefPosition;
-		this->set_rotation_degrees(Vector3(-90.0, 0.0, 0.0));
+	} else {
+		this->m_ecefPosition = CesiumMathUtils::to_glm_dvec3(this->get_global_position());
+		this->m_originalEcefPosition = this->m_ecefPosition;
+	}
 }
 	
