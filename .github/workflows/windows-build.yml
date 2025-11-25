@@ -1,5 +1,4 @@
-
-name: Windows Single Precision Build
+name: Windows Double & Single Precision Builds
 
 on:
   push:
@@ -12,8 +11,8 @@ env:
   GIT_LFS_SKIP_SMUDGE: "1"
 
 jobs:
-  build:
-    name: Build Godot3DTiles Extension
+  double:
+    name: Build Godot3DTiles Extension (Double Precision)
     runs-on: windows-latest
 
     steps:
@@ -34,7 +33,42 @@ jobs:
         vs-version: '17.7'
         include-optional: true
 
-    - name: Build Extension (Single Precision)
+    - name: Build Extension (Double Precision Debug)
+      run: scons platform=windows arch=x64 compileTarget=extension target=template_release buildCesium=true precision=double
+
+    - name: Verify Build Output
+      run: if ((gci godot3dtiles/addons/cesium_godot/lib -Filter "*.dll").Count -lt 1) { exit 1 }
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: godot3dtiles-double-precision-dev
+        path: godot3dtiles/
+
+  single:
+    name: Build Godot3DTiles Extension (Single Precision)
+    runs-on: windows-latest
+    needs: double
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.8'
+
+    - name: Install SCons
+      run: pip install scons
+
+    - name: Setup MSVC 2022
+      uses: microsoft/setup-msbuild@v1.3
+      with:
+        vs-version: '17.7'
+        include-optional: true
+
+    - name: Build Extension (Single Precision Debug)
       run: scons platform=windows arch=x64 compileTarget=extension target=template_release buildCesium=true
 
     - name: Verify Build Output
@@ -43,5 +77,5 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: godot3dtiles-single-precision
+        name: godot3dtiles-single-precision-dev
         path: godot3dtiles/

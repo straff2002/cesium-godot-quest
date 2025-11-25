@@ -2,9 +2,7 @@
 #define CESIUM_GD_RASTER_OVERLAY_H
 
 //Make Cesium not check for thread safety
-#ifndef NDEBUG
 #define NDEBUG
-#endif
 
 
 #if defined(CESIUM_GD_EXT)

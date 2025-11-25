@@ -176,8 +176,8 @@ func fetch_ion_asset_list():
 	return by_type
 
 func make_button_container(type: String, entries: Array):
-	var foldable = FoldableContainer.new()
-	foldable.title = type
+	var foldable = BoxContainer.new()
+	# foldable.title = type
 	var margin = MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
 	margin.offset_top = 10

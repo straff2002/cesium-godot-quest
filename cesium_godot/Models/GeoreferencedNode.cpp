@@ -9,6 +9,10 @@
 void GeoreferencedMesh::_ready() {
 	if (Engine::get_singleton()->is_editor_hint()) return;
 
+	// True origin is a no-op
+	if (this->get_georeference()->get_origin_type_raw() == CesiumGeoreference::OriginType::TrueOrigin) {
+		return;
+	}
 	// Use the georeference's origin to apply the difference in engine coords
 	Vector3 ecefOrigin = CesiumMathUtils::from_glm_vec3(this->get_georeference()->get_ecef_position());
 	Vector3 objectPos = this->get_georeference()->get_tx_engine_to_ecef().xform(this->get_global_position());

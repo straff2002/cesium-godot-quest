@@ -88,6 +88,10 @@ int CesiumGeoreference::get_origin_type() const {
 	return static_cast<int32_t>(this->m_originType);
 }
 
+CesiumGeoreference::OriginType CesiumGeoreference::get_origin_type_raw() const {
+	return this->m_originType;
+}
+
 void CesiumGeoreference::set_origin_type(int type) {
 	this->m_originType = static_cast<OriginType>(type);
 }
@@ -349,11 +353,6 @@ void CesiumGeoreference::_bind_methods()
 void CesiumGeoreference::_enter_tree() {
 	this->m_initialOriginTransform = this->get_global_transform();
 	this->set_rotation_degrees(Vector3(-90.0, 0.0, 0.0));
-	if (this->m_originType == OriginType::CartographicOrigin) {
-		this->m_originalEcefPosition = this->m_ecefPosition;
-	} else {
-		this->m_ecefPosition = CesiumMathUtils::to_glm_dvec3(this->get_global_position());
-		this->m_originalEcefPosition = this->m_ecefPosition;
-	}
+	this->m_originalEcefPosition = this->m_ecefPosition;
 }
 	

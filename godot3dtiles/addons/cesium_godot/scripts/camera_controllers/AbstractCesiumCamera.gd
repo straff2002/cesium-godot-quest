@@ -38,9 +38,13 @@ func _ready() -> void:
 		self.near = ACCEPTABLE_NEAR_PLANE
 	else:
 		self.far = 149597870700.0 + 3*1392700000.0
+		# Get the ecef
+		var ecef_pos := Vector3(self.globe_node.ecefX, self.globe_node.ecefY, self.globe_node.ecefZ)
+		self.global_position = self.globe_node.get_tx_ecef_to_engine() * ecef_pos
 
 	if self.render_atmosphere:
 		self._load_atmosphere()
+
 
 
 func _load_atmosphere() -> void:

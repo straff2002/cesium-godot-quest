@@ -233,7 +233,7 @@ icon_alignment = 2
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="TerrainAssets" type="FoldableContainer" parent="ScrollContainer/VSplitContainer/VBoxContainer/IonAssetButtonHolder"]
+[node name="TerrainAssets" type="BoxContainer" parent="ScrollContainer/VSplitContainer/VBoxContainer/IonAssetButtonHolder"]
 layout_mode = 2
 title = "Terrain"
 
@@ -262,7 +262,7 @@ layout_mode = 2
 icon = ExtResource("1_u036t")
 icon_alignment = 1
 
-[node name="Imagery" type="FoldableContainer" parent="ScrollContainer/VSplitContainer/VBoxContainer/IonAssetButtonHolder"]
+[node name="Imagery" type="BoxContainer" parent="ScrollContainer/VSplitContainer/VBoxContainer/IonAssetButtonHolder"]
 layout_mode = 2
 title = "Imagery"
 
@@ -291,7 +291,7 @@ layout_mode = 2
 icon = ExtResource("1_u036t")
 icon_alignment = 1
 
-[node name="3D Tiles" type="FoldableContainer" parent="ScrollContainer/VSplitContainer/VBoxContainer/IonAssetButtonHolder"]
+[node name="3D Tiles" type="BoxContainer" parent="ScrollContainer/VSplitContainer/VBoxContainer/IonAssetButtonHolder"]
 layout_mode = 2
 title = "3D Tiles"
 

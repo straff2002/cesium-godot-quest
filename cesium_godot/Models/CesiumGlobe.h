@@ -51,6 +51,8 @@ public:
 
 	int get_origin_type() const;
 
+	OriginType get_origin_type_raw() const;
+
 	void set_origin_type(int type);
 
 	double get_ecef_x() const;

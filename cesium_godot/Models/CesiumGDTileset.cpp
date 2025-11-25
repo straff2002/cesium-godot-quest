@@ -443,6 +443,10 @@ bool Cesium3DTileset::is_georeferenced(CesiumGeoreference** outRef) const
 
 
 void Cesium3DTileset::move_origin(const glm::dvec3& enginePos) {
+	// On true origin, this is a no-op, so, we better save those CPU cycles
+	if (this->m_georeference->get_origin_type_raw() == CesiumGeoreference::OriginType::TrueOrigin) {
+		return;
+	}
 	// Get all tiles
 	int32_t childCount = this->get_child_count();
 	for(int32_t i = 0; i < childCount; i++) {
@@ -617,10 +621,13 @@ void Cesium3DTileset::process_tile_chunk(const std::vector<Cesium3DTilesSelectio
 void Cesium3DTileset::register_tile(Cesium3DTile *instance, size_t hash) {
 	this->add_child(instance, false);
 	instance->set_owner(this);
+	tileCount++;
+	if (this->m_georeference->get_origin_type_raw() == CesiumGeoreference::OriginType::TrueOrigin) {
+		return;
+	}
 	const glm::dvec3& ecefOrigin = this->m_georeference->get_ecef_position();
 	const glm::dvec3 engineOrigin = CesiumMathUtils::ecef_to_engine(ecefOrigin);
 	instance->apply_position_on_globe(engineOrigin);
-	tileCount++;
 }
 
 
