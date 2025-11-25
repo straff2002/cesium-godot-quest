@@ -27,9 +27,11 @@ namespace Godot3DTiles::AssetManipulation {
   };  
 
 
-  void instantiate_tileset(Node* baseNode, int32_t assetId = 0, const String& assetType = "");
+  void instantiate_tileset(Node* baseNode, int32_t assetId = 0, const String& assetType = "", const String& assetName = "Blank");
   
   void instantiate_dynamic_cam(Node* baseNode);
+  
+  void instantiate_orbit_cam(Node* baseNode);
   
   CesiumGeoreference* find_or_create_globe(Node* baseNode);
 

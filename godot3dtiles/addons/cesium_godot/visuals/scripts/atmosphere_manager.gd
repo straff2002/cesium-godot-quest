@@ -6,7 +6,7 @@ class_name AtmosphereManager
 @export var globe: CesiumGeoreference
 @export var mesh_atmosphere: MeshInstance3D
 @export var sun: DirectionalLight3D
-@export var camera: GeoreferenceCameraController
+@export var camera: Camera3D
 var set_layers: bool = false
 
 
@@ -37,6 +37,7 @@ var material : ShaderMaterial
 func _ready() -> void:
 	material = base_material.duplicate()
 	material.set_shader_parameter("AlphaValue", 0.27)
+	print("Atmosphere Manager Ready!")
 
 # Function to calculate the oblate radius value based on camera position and globe parameters.
 func get_oblate_radius(globe: CesiumGeoreference) -> float:
@@ -44,7 +45,11 @@ func get_oblate_radius(globe: CesiumGeoreference) -> float:
 	const semi_minor_beta : float = 6356752
 
 	# Calculate the camera's ECEF position based on its coordinates.
-	var cam_ecef_loc := Vector3(globe.ecefX, globe.ecefY, globe.ecefZ)
+	var cam_ecef_loc : Vector3
+	if self.globe.origin_type == CesiumGeoreference.CartographicOrigin:
+		cam_ecef_loc = Vector3(globe.ecefX, globe.ecefY, globe.ecefZ)
+	else:
+		cam_ecef_loc = self.globe.get_tx_engine_to_ecef() * self.camera.global_position
 
 	# Calcuate the current vector length based on camera position.
 	var camera_x_squared = pow(cam_ecef_loc[0], 2)
@@ -68,13 +73,16 @@ func update_settings():
 	atmosphere_settings.atmosphere_scale = 0.1
 
 	# Get the camera's position based on its ECEF coordinates
-	var cam_ecef_pos := Vector3(self.globe.ecefX, self.globe.ecefY, self.globe.ecefZ)
-	var cam_relative_engine_pos : Vector3 = self.globe.get_tx_ecef_to_engine() * cam_ecef_pos
 	var centre : Vector3 = globe.global_position # We used to move this around
 	material.set_shader_parameter("Cartographic", self.globe.origin_type == CesiumGeoreference.OriginType.CartographicOrigin)
 	material.set_shader_parameter("DistanceToSurface", self.camera.last_hit_distance)
 	material.set_shader_parameter("PlanetCentre", centre)
-	material.set_shader_parameter("CameraWorldPos", cam_relative_engine_pos)
+	if self.globe.origin_type == CesiumGeoreference.OriginType.CartographicOrigin:
+		var cam_ecef_pos := Vector3(self.globe.ecefX, self.globe.ecefY, self.globe.ecefZ)
+		var cam_relative_engine_pos : Vector3 = self.globe.get_tx_ecef_to_engine() * cam_ecef_pos
+		material.set_shader_parameter("CameraWorldPos", cam_relative_engine_pos)
+	else:
+		material.set_shader_parameter("CameraWorldPos", self.camera.global_position)
 	#atmosphere_settings.set_properties("OceanRadius", radius)
 	material.set_shader_parameter("OceanRadius", oblate_radius)
 	material.set_shader_parameter("ScreenWidth", source_viewport.size.x)
@@ -82,6 +90,9 @@ func update_settings():
 
 	var dir_to_sun := Vector3.UP
 	if sun:
-		dir_to_sun = (sun.global_position - centre).normalized()
+		if self.globe.origin_type == CesiumGeoreference.OriginType.CartographicOrigin:
+			dir_to_sun = (sun.global_position - centre).normalized()
+		else:
+			dir_to_sun = sun.transform * Vector3.FORWARD
 
 	material.set_shader_parameter("DirToSun", dir_to_sun)

@@ -30,14 +30,15 @@ godot3dtiles/**
 !godot3dtiles/addons/
 !godot3dtiles/addons/**
 
-!godot3dtiles/bin/
-!godot3dtiles/bin/*.dll
-!godot3dtiles/bin/*.os
-!godot3dtiles/bin/*.gdextension
-godot3dtiles/bin/*Godot3DTiles*.dll
+!godot3dtiles/addons/cesium_godot/lib/
+godot3dtiles/addons/cesium_godot/lib/*
 
 !godot-html/ultralight/lib/*.lib
 !cesium_godot/third_party/litehtml/*.lib
+
+# Ignore any project import files 
+godot3dtiles/**/*.uid
+godot3dtiles/**/*.import
 
 # Ignore large files
 *.ipch

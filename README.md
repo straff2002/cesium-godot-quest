@@ -22,8 +22,8 @@ As of now the plugin is available for Windows and Linux as development platforms
 
 - **C++ 20**
 - **CMake 3.1+ and less than 4.0 due to compatibility issues**
-- **Python 3.8+** (with pip)
-- **SCons** (`pip install scons`)
+- **Python 3.8+** (with pip or uv)
+- **SCons** (`pip install scons` or `uvx scons`)
 - **Git**
 - **Godot 4.1+** (with GDExtension support)
 - **Linux specific**
@@ -86,8 +86,6 @@ The plugin supports double precision mode for more accurate true origin navigati
 
 * From the repository:
 
-  * Copy `godot3dtiles/bin/` folder to your project root
-
   * Copy `godot3dtiles/addons/` folder to your project root
 
 Your project structure should look like:
@@ -96,10 +94,13 @@ Your project structure should look like:
 my_project/
 ├── addons/
 │   └── cesium_godot/
+│       ├── lib/
 │       ├── panels/
+│       ├── resources/
 │       ├── scripts/
-│       └── visuals/
-├── bin/
+│       ├── visuals/
+│       ├── plugin.cfg
+│       └── Godot3DTiles.gdextension
 └── project.godot
 ```
 
@@ -131,6 +132,10 @@ The Cesium Ion Panel provides essential tools for managing geospatial content an
 * Grants access to your private assets and token-protected resources
 
 * Maintains session security through OAuth2 authorization flow.
+
+Once you've connected and authorized the application, you should see your Cesium Assets populate in the docked panel.
+
+![PanelDemo2](readme_resources/panel_populated.png)
 
 ### Setting up your first scene
 

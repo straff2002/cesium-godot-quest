@@ -56,6 +56,10 @@ enum class EComponentType : int64_t
 
 class CesiumPropertyInfo : public RefCounted {
 	GDCLASS(CesiumPropertyInfo, RefCounted)
+	
+protected:
+	static void _bind_methods();
+
 public:
 	EPropertyType propertyType;
 	EComponentType componentType;

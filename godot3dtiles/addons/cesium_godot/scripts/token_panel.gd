@@ -27,6 +27,8 @@ var current_token_usage: TokenUsageType = TokenUsageType.Specific
 var default_config: CesiumGDConfig = null
 
 func initialize_fields(token_panel: Popup) -> void:
+	token_panel.find_child("CloseButton").pressed.connect(func (): token_panel.hide())
+	
 	self.default_config = CesiumGDConfig.get_singleton(token_panel)
 	self.token_troubleshooting = TokenTroubleshooting.new()
 	token_panel.add_child(self.token_troubleshooting)
@@ -146,10 +148,10 @@ func create_new_token() -> String:
 	var headers: PackedStringArray = ["Authorization: Bearer " + token, "Content-Type: application/json"]
 
 	var scopes := [
-	    "assets:list",
-	    "assets:read",
-	    "geocode",
-	    "tokens:read",
+		"assets:list",
+		"assets:read",
+		"geocode",
+		"tokens:read",
 	]
 	var reqBody: Dictionary = { "name": self.new_token_name.text, "scopes": scopes }
 	var reqBodyStr: String = JSON.stringify(reqBody)
