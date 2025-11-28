@@ -202,6 +202,67 @@ glm::dvec3 CesiumGeoreference::get_lla() const {
 }
 
 
+Vector3 CesiumGeoreference::ecef_to_lat_lon_alt_rad(const EcefVector3& ecef) const {
+	const double x = ecef.x;
+	const double y = ecef.y;
+	const double z = ecef.z;
+
+	
+	double p = Math::sqrt((x * x) + (y * y));
+	double theta = Math::atan2(WGS84_RADIUS * z, WGS84_B * p);	
+
+	double longitude = Math::atan2(y, x);
+
+	// This was a tough one
+	double lat = Math::atan2( (z + WGS84_E_PRIME_SQR * WGS84_B * Math::pow(Math::sin(theta), 3)), (p - WGS84_E_SQR * WGS84_RADIUS * Math::pow(Math::cos(theta), 3)));
+	double N = WGS84_RADIUS / (Math::sqrt(1 - (WGS84_E_SQR * Math::pow(Math::sin(lat), 2))));
+	double m = (p / Math::cos(lat));
+  
+	double alt = m - N;
+	return Vector3(lat, longitude, alt);
+}
+
+
+Vector3 CesiumGeoreference::ecef_to_lat_lon_alt_deg(const EcefVector3& ecef) const 
+{
+	const double x = ecef.x;
+	const double y = ecef.y;
+	const double z = ecef.z;
+
+	
+	double p = Math::sqrt((x * x) + (y * y));
+	double theta = Math::atan2(WGS84_RADIUS * z, WGS84_B * p);	
+
+	double longitude = Math::atan2(y, x);
+
+	// This was a tough one
+	double lat = Math::atan2( (z + WGS84_E_PRIME_SQR * WGS84_B * Math::pow(Math::sin(theta), 3)), (p - WGS84_E_SQR * WGS84_RADIUS * Math::pow(Math::cos(theta), 3)));
+	double N = WGS84_RADIUS / (Math::sqrt(1 - (WGS84_E_SQR * Math::pow(Math::sin(lat), 2))));
+	double m = (p / Math::cos(lat));
+  
+	double alt = m - N;
+	return Vector3(Math::rad_to_deg(lat), Math::rad_to_deg(longitude), alt);
+}
+
+EcefVector3 CesiumGeoreference::lat_lon_alt_rad_to_ecef(const Vector3& lla) const {
+	const double lat = lla.x;
+	const double lon = lla.y;
+	const double alt = lla.z;
+
+	double clat = cos(lat);
+	double slat = sin(lat);
+	double clon = cos(lon);
+	double slon = sin(lon);	
+
+	double N = WGS84_RADIUS / sqrt(1.0 - WGS84_E_SQR * slat * slat);
+
+	Vector3 res{};
+	res.x = (N + alt) * clat * clon;
+	res.y = (N + alt) * clat * slon;
+	res.z = (N * (1 - WGS84_E_SQR) + alt) * slat;
+	return res;
+}
+
 void CesiumGeoreference::register_tileset_to_move_origin(Cesium3DTileset* tileset) {
 	this->m_trackedTilesets.emplace_back(tileset);
 }
@@ -212,12 +273,12 @@ void CesiumGeoreference::update_ecef_with_lla(glm::dvec3 lla) {
 	const double& lat = lla.x;
 	const double& lon = lla.y;
 	const double& alt = lla.z;
-	
-  double clat = cos(Math::deg_to_rad(lat));
-  double slat = sin(Math::deg_to_rad(lat));
-  double clon = cos(Math::deg_to_rad(lon));
-  double slon = sin(Math::deg_to_rad(lon));	
-  
+
+	double clat = cos(Math::deg_to_rad(lat));
+	double slat = sin(Math::deg_to_rad(lat));
+	double clon = cos(Math::deg_to_rad(lon));
+	double slon = sin(Math::deg_to_rad(lon));	
+
 	double N = WGS84_RADIUS / sqrt(1.0 - WGS84_E_SQR * slat * slat);
 
 	this->m_ecefPosition.x = (N + alt) * clat * clon;
@@ -302,6 +363,9 @@ void CesiumGeoreference::_bind_methods()
 	ClassDB::bind_method(D_METHOD("get_initial_tx_ecef_to_engine"), &CesiumGeoreference::get_initial_tx_ecef_to_engine);
 
 	ClassDB::bind_method(D_METHOD("eus_at_ecef"), &CesiumGeoreference::eus_at_ecef);
+	ClassDB::bind_method(D_METHOD("ecef_to_lat_lon_alt_deg", "ecef"), &CesiumGeoreference::ecef_to_lat_lon_alt_deg);
+	ClassDB::bind_method(D_METHOD("ecef_to_lat_lon_alt_rad", "ecef"), &CesiumGeoreference::ecef_to_lat_lon_alt_rad);
+	ClassDB::bind_method(D_METHOD("lat_lon_alt_rad_to_ecef", "lla"), &CesiumGeoreference::lat_lon_alt_rad_to_ecef);
 	ClassDB::bind_method(D_METHOD("get_global_center_position"), &CesiumGeoreference::get_global_center_position);
 	ClassDB::bind_method(D_METHOD("get_global_surface_position"), &CesiumGeoreference::get_global_surface_position);
 	ClassDB::bind_method(D_METHOD("get_mouse_pos_ecef"), &CesiumGeoreference::get_mouse_pos_ecef);

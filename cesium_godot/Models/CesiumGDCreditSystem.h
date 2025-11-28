@@ -31,6 +31,11 @@ class CesiumGDCreditSystem : public BoxContainer {
     void _process(double p_delta) override;  
 
     void _enter_tree() override;
+
+    /// @brief SHOULD NOT BE CALLED UNLESS YOU OWN THE LICENSE TO YOUR DATA!!!
+    static void turn_off();
+    
+    static void turn_on();
     
   private:
     // HtmlRect* m_rect;

@@ -81,6 +81,18 @@ void CesiumGDCreditSystem::_enter_tree() {
   this->m_rect->set_owner(this->get_parent());
 }
 
+void CesiumGDCreditSystem::turn_off() {
+  if (s_instance == nullptr) return;
+  s_instance->set_visible(false);
+}
+
+
+void CesiumGDCreditSystem::turn_on() {
+  if (s_instance == nullptr) return;
+  s_instance->set_visible(true);
+}
+
 void CesiumGDCreditSystem::_bind_methods() {
-  
+  ClassDB::bind_static_method("CesiumGDCreditSystem", D_METHOD("turn_on"), &CesiumGDCreditSystem::turn_on);
+  ClassDB::bind_static_method("CesiumGDCreditSystem", D_METHOD("turn_off"), &CesiumGDCreditSystem::turn_off);
 }

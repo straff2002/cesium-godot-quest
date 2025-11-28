@@ -2,6 +2,7 @@
 #define CESIUM_GLOBE_H
 
 #include "Models/CesiumGDTileset.h"
+#include "godot_cpp/variant/vector3.hpp"
 #include <vector>
 #if defined(CESIUM_GD_EXT)
 #include <godot_cpp/classes/object.hpp>
@@ -87,6 +88,12 @@ public:
 	
 	glm::dvec3 get_lla() const;
 
+	Vector3 ecef_to_lat_lon_alt_rad(const EcefVector3& ecef) const;
+
+	Vector3 ecef_to_lat_lon_alt_deg(const EcefVector3& ecef) const;
+
+	EcefVector3 lat_lon_alt_rad_to_ecef(const Vector3& lla) const;
+	
 	void register_tileset_to_move_origin(Cesium3DTileset* tileset);
 	
 	void update_ecef_with_lla(glm::dvec3 lla);
