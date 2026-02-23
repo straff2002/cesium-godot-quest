@@ -1,4 +1,4 @@
-#include "CesiumGDModelLoader.h"
+﻿#include "CesiumGDModelLoader.h"
 #include "CesiumGltf/BufferView.h"
 #include "error_names.hpp"
 #include "missing_functions.hpp"
@@ -34,7 +34,7 @@ constexpr int32_t RGBA_CHANNEL_COUNT = 4;
 constexpr int32_t RGB_CHANNEL_COUNT = 3;
 
 Ref<ArrayMesh> CesiumGDModelLoader::generate_meshes_from_model(const CesiumGltf::Model& model, Error* error)
-{
+{	
 	std::vector<CesiumGltf::Mesh> gltfMeshes = model.meshes;
 
 	std::unordered_map<int32_t, Ref<StandardMaterial3D>> materialsMap;
@@ -124,6 +124,11 @@ Ref<ArrayMesh> CesiumGDModelLoader::generate_meshes_from_model(const CesiumGltf:
 			}
 			#endif
 			
+			if (model.isExtensionUsed("KHR_material_unlit") || model.isExtensionRequired("KHR_material_unlit")) {
+				godotMaterial->set_shading_mode(BaseMaterial3D::ShadingMode::SHADING_MODE_UNSHADED);
+				//printf("\n%s", "Model has KHR_material_unlit");
+			}
+
 			*error = apply_surface_to_mesh(primitive, meshInstance, arrays);
 			meshInstance->surface_set_material(surfaceIndex, godotMaterial);
 			materialsMap.insert_or_assign(primitive.material, godotMaterial);
