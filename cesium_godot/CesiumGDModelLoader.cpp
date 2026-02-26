@@ -11,6 +11,9 @@
 #include <godot_cpp/core/error_macros.hpp>
 #include "godot_cpp/classes/array_mesh.hpp"
 #include "godot_cpp/classes/file_access.hpp"
+#include <godot_cpp/classes/shader.hpp>
+#include <godot_cpp/classes/shader_material.hpp>
+#include <godot_cpp/classes/resource_loader.hpp>
 #include "godot_cpp/variant/array.hpp"
 #include "godot_cpp/variant/packed_int32_array.hpp"
 #include "godot_cpp/variant/packed_vector2_array.hpp"
@@ -21,6 +24,9 @@ using namespace godot;
 #include "scene/resources/surface_tool.h"
 #include "scene/3d/mesh_instance_3d.h"
 #include "core/error/error_macros.h"
+#include "core/io/resource_loader.h"
+#include "scene/resources/shader.h"
+#include "scene/resources/shader_material.h"
 #endif
 
 #include <CesiumGltfReader/GltfReader.h>
@@ -42,6 +48,40 @@ Ref<ArrayMesh> CesiumGDModelLoader::generate_meshes_from_model(const CesiumGltf:
 	std::unordered_map<int32_t, Ref<StandardMaterial3D>> materialsMap;
 
 	Ref<ArrayMesh> meshInstance = memnew(ArrayMesh);
+
+	Ref<Shader> texture_transform_shader = godot::ResourceLoader::get_singleton()->load("res://Shaders/spatial_texture_rotation.gdshader");
+	texture_transform_shader.instantiate();
+	if (!texture_transform_shader.is_valid()) {
+		texture_transform_shader.instantiate();
+
+		String code = R"(
+		shader_type spatial;
+
+		uniform sampler2D albedo_texture : source_color;
+		uniform vec2 uv_offset = vec2(0.0);
+		uniform vec2 uv_scale = vec2(1.0);
+		uniform float uv_rotation = 0.0;
+
+		vec2 rotate_uv(vec2 uv, float angle) {
+			float s = sin(angle);
+			float c = cos(angle);
+			mat2 rot = mat2(c, -s, s, c);
+			return rot * uv;
+		}
+
+		void fragment() {
+			vec2 uv = UV;
+			uv *= uv_scale;
+			uv = rotate_uv(uv, uv_rotation);
+			uv += uv_offset;
+			vec4 albedo = texture(albedo_texture, uv);
+			ALBEDO = albedo.rgb;
+			ALPHA = albedo.a;
+		}
+		)";
+
+		texture_transform_shader->set_code(code);
+	}
 
 	*error = Error::OK;
 	for (const CesiumGltf::Mesh& mesh : gltfMeshes) {
@@ -126,6 +166,7 @@ Ref<ArrayMesh> CesiumGDModelLoader::generate_meshes_from_model(const CesiumGltf:
 			}
 			#endif
 			
+			Ref<Material> finalMaterial = godotMaterial;
 			if (modelReference->hasExtension<CesiumGltf::ExtensionKhrMaterialsUnlit>()) {
 				godotMaterial->set_shading_mode(BaseMaterial3D::ShadingMode::SHADING_MODE_UNSHADED);
 			}
@@ -133,23 +174,53 @@ Ref<ArrayMesh> CesiumGDModelLoader::generate_meshes_from_model(const CesiumGltf:
 			if (modelReference->hasExtension<CesiumGltf::ExtensionKhrTextureTransform>()) {
 				const CesiumGltf::ExtensionKhrTextureTransform* texture_transform_ext = modelReference->getExtension<CesiumGltf::ExtensionKhrTextureTransform>();
 				if (texture_transform_ext) {
-					const std::vector<double>& offset_vec = texture_transform_ext->offset;
-					if (offset_vec.size() == 2) {
-						const Vector3 offset_vector3 = Vector3(offset_vec[0], offset_vec[1], 0.0f);
-						godotMaterial->set_uv1_offset(offset_vector3);
+					const std::vector<double>& offsetVec = texture_transform_ext->offset;
+					const std::vector<double>& scaleVec = texture_transform_ext->scale;
+					float rotation_value = texture_transform_ext->rotation;
+
+					Vector3 offsetVector3 = Vector3(0, 0, 0);
+					Vector3 scaleVector3 = Vector3(1, 1, 1);
+
+					if (offsetVec.size() == 2) {
+						offsetVector3 = Vector3(offsetVec[0], offsetVec[1], 0);
 					}
 
-					const std::vector<double>& scale_vec = texture_transform_ext->scale;
-					if (scale_vec.size() == 2) {
-						const Vector3 scale_vector3 = Vector3(scale_vec[0], scale_vec[1], 1.0f);
-						godotMaterial->set_uv1_scale(scale_vector3);
+					if (scaleVec.size() == 2) {
+						scaleVector3 = Vector3(scaleVec[0], scaleVec[1], 1);
 					}
+
+					if (texture_transform_shader.is_valid()) {
+						Ref<ShaderMaterial> shaderMat;
+						shaderMat.instantiate();
+						shaderMat->set_shader(texture_transform_shader);
+
+						Ref<Texture2D> albedo_texture_mat = godotMaterial->get_texture(BaseMaterial3D::TEXTURE_ALBEDO);
+						shaderMat->set_shader_parameter("albedo_texture", albedo_texture_mat);
+
+						shaderMat->set_shader_parameter("uv_offset", offsetVector3);
+						shaderMat->set_shader_parameter("uv_scale", scaleVector3);
+						shaderMat->set_shader_parameter("uv_rotation", rotation_value);
+						
+						finalMaterial = shaderMat;
+					}
+					else {
+
+						if (offsetVec.size() == 2) {
+							godotMaterial->set_uv1_offset(offsetVector3);
+						}
+
+
+						if (scaleVec.size() == 2) {
+							godotMaterial->set_uv1_scale(scaleVector3);
+						}
+					}
+					
 				}
 			}
 
 			*error = apply_surface_to_mesh(primitive, meshInstance, arrays);
-			meshInstance->surface_set_material(surfaceIndex, godotMaterial);
-			materialsMap.insert_or_assign(primitive.material, godotMaterial);
+			meshInstance->surface_set_material(surfaceIndex, finalMaterial);
+			materialsMap.insert_or_assign(primitive.material, finalMaterial);
 
 			surfaceIndex++;
 		}
