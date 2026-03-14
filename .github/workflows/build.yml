@@ -1,0 +1,201 @@
+name: Build Cesium GDExtension
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  BUILD_TYPE: Release
+  GODOT_TARGET: template_release
+  NDK_VERSION: r26d
+
+jobs:
+  build-android-arm64:
+    name: Android ARM64 (Quest 3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build python3 python3-pip
+          pip3 install scons
+
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: ${{ env.NDK_VERSION }}
+
+      - name: Clone upstream
+        run: |
+          git clone --recursive https://github.com/Battle-Road-Labs/3D-Tiles-For-Godot.git upstream
+
+      - name: Apply patches
+        run: |
+          cd upstream
+          for patch in ../patches/*.patch; do
+            if [ -f "$patch" ]; then
+              git apply "$patch" 2>/dev/null || echo "Patch $(basename $patch) already applied or conflicts"
+            fi
+          done
+
+      - name: Build cesium-native
+        env:
+          ANDROID_NDK_ROOT: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          cd upstream/extern/cesium-native
+          mkdir -p build-android-arm64
+          cd build-android-arm64
+          cmake .. \
+            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-29 \
+            -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DCESIUM_MSVC_STATIC_RUNTIME_ENABLED=OFF \
+            -DCESIUM_TESTS_ENABLED=OFF \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            "-DCMAKE_CXX_FLAGS=-fexceptions -frtti"
+          cmake --build . --config $BUILD_TYPE --parallel $(nproc)
+
+      - name: Build godot-cpp
+        run: |
+          cd upstream/extern/godot-cpp
+          scons platform=android arch=arm64 target=$GODOT_TARGET \
+            android_api_level=29 -j$(nproc)
+
+      - name: Build GDExtension
+        env:
+          ANDROID_NDK_ROOT: ${{ steps.setup-ndk.outputs.ndk-path }}
+          CESIUM_NATIVE_BUILD_DIR: ${{ github.workspace }}/upstream/extern/cesium-native/build-android-arm64
+        run: |
+          cd upstream
+          scons platform=android arch=arm64 target=$GODOT_TARGET -j$(nproc)
+
+      - name: Package
+        run: |
+          mkdir -p dist/addons/cesium_godot/lib
+          find upstream -name "*.android.*.arm64.so" -exec cp {} dist/addons/cesium_godot/lib/ \;
+          cp upstream/project/addons/cesium_godot/cesium_godot.gdextension dist/addons/cesium_godot/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cesium-godot-android-arm64
+          path: dist/
+
+  build-linux-x64:
+    name: Linux x86_64
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build python3 python3-pip
+          pip3 install scons
+
+      - name: Clone upstream
+        run: |
+          git clone --recursive https://github.com/Battle-Road-Labs/3D-Tiles-For-Godot.git upstream
+
+      - name: Apply patches
+        run: |
+          cd upstream
+          for patch in ../patches/*.patch; do
+            if [ -f "$patch" ]; then
+              git apply "$patch" 2>/dev/null || echo "Patch $(basename $patch) already applied or conflicts"
+            fi
+          done
+
+      - name: Build cesium-native
+        run: |
+          cd upstream/extern/cesium-native
+          mkdir -p build-linux-x64
+          cd build-linux-x64
+          cmake .. \
+            -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DCESIUM_TESTS_ENABLED=OFF \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+          cmake --build . --config $BUILD_TYPE --parallel $(nproc)
+
+      - name: Build godot-cpp
+        run: |
+          cd upstream/extern/godot-cpp
+          scons platform=linux target=$GODOT_TARGET -j$(nproc)
+
+      - name: Build GDExtension
+        env:
+          CESIUM_NATIVE_BUILD_DIR: ${{ github.workspace }}/upstream/extern/cesium-native/build-linux-x64
+        run: |
+          cd upstream
+          scons platform=linux target=$GODOT_TARGET -j$(nproc)
+
+      - name: Package
+        run: |
+          mkdir -p dist/addons/cesium_godot/lib
+          find upstream -name "*.linux.*.x86_64.so" -exec cp {} dist/addons/cesium_godot/lib/ \;
+          cp upstream/project/addons/cesium_godot/cesium_godot.gdextension dist/addons/cesium_godot/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cesium-godot-linux-x64
+          path: dist/
+
+  release:
+    name: Create Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-android-arm64, build-linux-x64]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Package release
+        run: |
+          mkdir -p release/addons/cesium_godot/lib
+          # Merge all platform libs into one addon directory
+          find artifacts/ -name "*.so" -o -name "*.dll" | while read f; do
+            cp "$f" release/addons/cesium_godot/lib/
+          done
+          # Copy gdextension file (patched with all platform entries)
+          cp artifacts/cesium-godot-android-arm64/addons/cesium_godot/cesium_godot.gdextension \
+             release/addons/cesium_godot/
+          cd release && zip -r ../cesium-godot-quest-${{ github.ref_name }}.zip addons/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: cesium-godot-quest-*.zip
+          body: |
+            ## Cesium 3D Tiles for Godot — Quest Edition ${{ github.ref_name }}
+
+            Pre-built GDExtension binaries for:
+            - **Android ARM64** (Meta Quest 3 / Quest Pro) ✅
+            - **Linux x86_64** ✅
+
+            ### Installation
+            1. Download `cesium-godot-quest-${{ github.ref_name }}.zip`
+            2. Extract `addons/cesium_godot/` into your Godot project
+            3. Enable the plugin in Project → Project Settings → Plugins
+
+            ### Cesium Ion Token
+            Get a free token at [cesium.com/ion/tokens](https://cesium.com/ion/tokens)
