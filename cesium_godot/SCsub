@@ -89,13 +89,23 @@ if (cesium_build_utils.is_extension_target(ARGUMENTS)):
 else:
     cesium_env.add_source_files(cesium_env.modules_sources, sources)
 
-vcpkgIncludePath = cesium_build_utils.find_ezvcpkg_include_path()
-includePaths.append(vcpkgIncludePath)
+if cesium_build_utils.is_android_target(ARGUMENTS):
+    # Android: vcpkg headers are in the cesium-native build directory
+    android_vcpkg_include = os.path.join(
+        cesium_build_utils.get_root_dir_native(),
+        "build-android-arm64", "vcpkg_installed", "arm64-android", "include"
+    )
+    android_vcpkg_include = cesium_build_utils.scons_to_abs_path(android_vcpkg_include)
+    includePaths.append(android_vcpkg_include)
+else:
+    vcpkgIncludePath = cesium_build_utils.find_ezvcpkg_include_path()
+    includePaths.append(vcpkgIncludePath)
 
 env.Append(CPPPATH=includePaths)
 
-vcpkgLibPath = cesium_build_utils.find_ezvcpkg_lib_path()
-env.Prepend(LIBPATH=vcpkgLibPath)
+if not cesium_build_utils.is_android_target(ARGUMENTS):
+    vcpkgLibPath = cesium_build_utils.find_ezvcpkg_lib_path()
+    env.Prepend(LIBPATH=vcpkgLibPath)
 
 root_dir_native = cesium_build_utils.get_root_dir_native()
 current_build_config = ""
@@ -142,7 +152,25 @@ libraries = [
     "gumbo"
 ]
 
-if (os.name == cesium_build_utils.OS_WIN):
+if cesium_build_utils.is_android_target(ARGUMENTS):
+    # Android: remove libs that don't exist on Android or are handled by the system
+    # Remove curl (use Godot's HTTP client), remove libssl (not needed without curl)
+    for lib_to_remove in ["curl", "libssl", "libwebp", "libwebpdecoder", "uriparser"]:
+        if lib_to_remove in libraries:
+            libraries.remove(lib_to_remove)
+
+    libraries.extend([
+        "z-ng",
+        "liblibmodpbase64",
+    ])
+
+    # Android system libraries
+    env.Append(LIBS=["log", "android", "z"])
+
+    # Define to use Godot HTTP client instead of curl
+    env.Append(CPPDEFINES=["CESIUM_USE_GODOT_HTTP_CLIENT"])
+
+elif (os.name == cesium_build_utils.OS_WIN):
     libraries.extend([
         "absl_bad_any_cast_impl",
         "absl_bad_optional_access",
@@ -244,32 +272,66 @@ elif (os.name == cesium_build_utils.OS_LINUX):
     env.Append(LIBPATH=["/usr/lib/x86_64-linux-gnu"])
     env.Append(CPPPATH=["/usr/include/x86_64-linux-gnu"])
 
-env.Append(
-    LIBS=libraries,
-    LIBPATH=[
-        f"{root_dir_native}/CesiumGltfReader/{current_build_config}",
-        f"{root_dir_native}/CesiumAsync/{current_build_config}",
-        f"{root_dir_native}/CesiumJsonReader/{current_build_config}",
-        f"{root_dir_native}/CesiumJsonWriter/{current_build_config}",
-        f"{root_dir_native}/CesiumGltf/{current_build_config}",
-        f"{root_dir_native}/CesiumUtility/{current_build_config}",
-        f"{root_dir_native}/CesiumGeospatial/{current_build_config}",
-        f"{root_dir_native}/Cesium3DTilesSelection/{current_build_config}",
-        f"{root_dir_native}/CesiumRasterOverlays/{current_build_config}",
-        f"{root_dir_native}/CesiumGeometry/{current_build_config}",
-        f"{root_dir_native}/Cesium3DTilesReader/{current_build_config}",
-        f"{root_dir_native}/CesiumGltfContent/{current_build_config}",
-        f"{root_dir_native}/CesiumQuantizedMeshTerrain/{current_build_config}",
-        f"{root_dir_native}/Cesium3DTilesContent/{current_build_config}",
-        cesium_build_utils.get_root_dir_native() + "/libs/gsl",
-        cesium_build_utils.get_root_dir_native() + "/libs/absl",
-        cesium_build_utils.get_root_dir_native() + "/libs",
-        cesium_build_utils.get_root_dir() + "/third_party/litehtml",
-        cesium_build_utils.find_ezvcpkg_path(
-        ) + "/installed/%s/lib" % (cesium_build_utils.determine_triplet())
+if cesium_build_utils.is_android_target(ARGUMENTS):
+    # Android: cesium-native is built in build-android-arm64/ subdirectory
+    android_build_dir = root_dir_native + "/build-android-arm64"
+    cesium_lib_modules = [
+        "CesiumGltfReader", "CesiumAsync", "CesiumJsonReader", "CesiumJsonWriter",
+        "CesiumGltf", "CesiumUtility", "CesiumGeospatial", "Cesium3DTilesSelection",
+        "CesiumRasterOverlays", "CesiumGeometry", "Cesium3DTilesReader",
+        "CesiumGltfContent", "CesiumQuantizedMeshTerrain", "Cesium3DTilesContent",
     ]
-)
+    android_lib_paths = []
+    for mod in cesium_lib_modules:
+        android_lib_paths.append(f"{android_build_dir}/{mod}")
+        android_lib_paths.append(f"{android_build_dir}/{mod}/{current_build_config}")
+    # Android: all vcpkg dependencies (async++, draco, fmt, spdlog, ktx, etc.)
+    # are installed in the cmake build directory, NOT in extern/ subdirectories
+    android_vcpkg_lib = f"{android_build_dir}/vcpkg_installed/arm64-android/lib"
+    android_lib_paths.append(android_vcpkg_lib)
+    # Also check ezvcpkg for abseil and other packages
+    android_lib_paths.extend([
+        root_dir_native + "/libs",
+        root_dir_native + "/libs/gsl",
+        cesium_build_utils.get_root_dir() + "/third_party/litehtml/android-arm64",
+    ])
+    try:
+        vcpkg_base = cesium_build_utils.find_ezvcpkg_path()
+        triplet = cesium_build_utils.determine_triplet(ARGUMENTS)
+        android_lib_paths.append(f"{vcpkg_base}/installed/{triplet}/lib")
+    except:
+        pass
 
-# This was a nightmare, so I abstracted it into a function, the function itself is also a nightmare
-if (os.name == cesium_build_utils.OS_LINUX):
+    env.Append(LIBS=libraries, LIBPATH=android_lib_paths)
+    # Android needs abseil too
     cesium_build_utils.link_abseil_libs(env)
+else:
+    env.Append(
+        LIBS=libraries,
+        LIBPATH=[
+            f"{root_dir_native}/CesiumGltfReader/{current_build_config}",
+            f"{root_dir_native}/CesiumAsync/{current_build_config}",
+            f"{root_dir_native}/CesiumJsonReader/{current_build_config}",
+            f"{root_dir_native}/CesiumJsonWriter/{current_build_config}",
+            f"{root_dir_native}/CesiumGltf/{current_build_config}",
+            f"{root_dir_native}/CesiumUtility/{current_build_config}",
+            f"{root_dir_native}/CesiumGeospatial/{current_build_config}",
+            f"{root_dir_native}/Cesium3DTilesSelection/{current_build_config}",
+            f"{root_dir_native}/CesiumRasterOverlays/{current_build_config}",
+            f"{root_dir_native}/CesiumGeometry/{current_build_config}",
+            f"{root_dir_native}/Cesium3DTilesReader/{current_build_config}",
+            f"{root_dir_native}/CesiumGltfContent/{current_build_config}",
+            f"{root_dir_native}/CesiumQuantizedMeshTerrain/{current_build_config}",
+            f"{root_dir_native}/Cesium3DTilesContent/{current_build_config}",
+            cesium_build_utils.get_root_dir_native() + "/libs/gsl",
+            cesium_build_utils.get_root_dir_native() + "/libs/absl",
+            cesium_build_utils.get_root_dir_native() + "/libs",
+            cesium_build_utils.get_root_dir() + "/third_party/litehtml",
+            cesium_build_utils.find_ezvcpkg_path(
+            ) + "/installed/%s/lib" % (cesium_build_utils.determine_triplet())
+        ]
+    )
+
+    # This was a nightmare, so I abstracted it into a function, the function itself is also a nightmare
+    if (os.name == cesium_build_utils.OS_LINUX):
+        cesium_build_utils.link_abseil_libs(env)

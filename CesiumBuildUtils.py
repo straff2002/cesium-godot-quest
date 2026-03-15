@@ -4,7 +4,7 @@ import os
 import fnmatch
 import sys
 
-from SCons.Script import Dir
+from SCons.Script import Dir, ARGUMENTS
 
 ROOT_DIR_MODULE = "#modules/cesium_godot"
 
@@ -31,14 +31,55 @@ RELEASE_CONFIG = "Release"
 ezvcpkgFoundPath: str = ""
 
 
-def get_compile_flags():
+def is_android_target(argsDict=None):
+    """Check if we're building for Android (target platform, not host OS)."""
+    if argsDict is None:
+        argsDict = ARGUMENTS
+    return argsDict.get("platform", "") == "android"
+
+
+def get_android_ndk_root():
+    """Find Android NDK root path."""
+    ndk = os.environ.get("ANDROID_NDK_ROOT", os.environ.get("ANDROID_NDK_HOME", ""))
+    if ndk and os.path.isdir(ndk):
+        return ndk
+    # Search common locations
+    import glob
+    candidates = glob.glob(os.path.expanduser("~/Library/Android/sdk/ndk/*"))
+    candidates += glob.glob(os.path.expanduser("~/Android/Sdk/ndk/*"))
+    candidates += glob.glob("/opt/android-ndk-*")
+    for c in sorted(candidates, reverse=True):
+        if os.path.isdir(c):
+            return c
+    return ""
+
+
+def get_android_abi(argsDict=None):
+    """Get Android ABI from arch argument."""
+    if argsDict is None:
+        argsDict = ARGUMENTS
+    arch = argsDict.get("arch", "arm64")
+    if arch in ("arm64", "aarch64"):
+        return "arm64-v8a"
+    elif arch in ("x86_64", "x64"):
+        return "x86_64"
+    elif arch in ("arm32", "armv7"):
+        return "armeabi-v7a"
+    return "arm64-v8a"
+
+
+def get_compile_flags(argsDict=None):
+    if is_android_target(argsDict):
+        return ["-std=c++20", "-fexceptions", "-frtti", "-fPIC", "-DFMT_USE_CONSTEVAL=0"]
     if os.name == OS_WIN:
         return ["/std:c++20", "/Zc:__cplusplus", "/utf-8", "/bigobj"]
     elif os.name == OS_LINUX:
         return ["-std=c++20", "-fexceptions", "-fpermissive", "-fPIC"]
 
 
-def get_linker_flags():
+def get_linker_flags(argsDict=None):
+    if is_android_target(argsDict):
+        return []
     if os.name == OS_WIN:
         return ["/IGNORE:4217"]
     return []
@@ -79,9 +120,29 @@ def get_compile_target_definition(argsDict) -> str:
 
 
 def link_abseil_libs(env):
-    foundLibs: list[SCons.Node.FS.File] = env.Glob(
-        f"{find_ezvcpkg_path()}/packages/abseil_{determine_triplet()}/lib/*absl*.a"
-    )
+    if is_android_target():
+        # For Android, abseil is built inside cesium-native's vcpkg
+        isExt = is_extension_target(ARGUMENTS)
+        repoDirectory = CESIUM_NATIVE_DIR_EXT if isExt else CESIUM_NATIVE_DIR_MODULE
+        repoDirectory = scons_to_abs_path(repoDirectory)
+        build_dir = os.path.join(repoDirectory, "build-android-arm64")
+        # Search multiple possible locations for abseil libs
+        search_paths = [
+            f"{build_dir}/vcpkg/packages/abseil_{determine_triplet()}/lib",
+            f"{build_dir}/vcpkg/installed/{determine_triplet()}/lib",
+            f"{find_ezvcpkg_path()}/packages/abseil_{determine_triplet()}/lib",
+            f"{find_ezvcpkg_path()}/installed/{determine_triplet()}/lib",
+        ]
+        foundLibs = []
+        for sp in search_paths:
+            foundLibs = env.Glob(f"{sp}/*absl*.a")
+            if foundLibs:
+                print(f"[CESIUM] Found abseil libs at: {sp}")
+                break
+    else:
+        foundLibs = env.Glob(
+            f"{find_ezvcpkg_path()}/packages/abseil_{determine_triplet()}/lib/*absl*.a"
+        )
 
     # Dark magic to strip the lib prefix and the file extension
     foundLibs = [lib.name.replace("lib", "")[:-2] for lib in foundLibs]
@@ -172,22 +233,62 @@ def configure_native(argumentsDict):
     isExt = is_extension_target(argumentsDict)
     repoDirectory = CESIUM_NATIVE_DIR_EXT if isExt else CESIUM_NATIVE_DIR_MODULE
     repoDirectory = scons_to_abs_path(repoDirectory)
-    os.chdir(repoDirectory)
+
+    # For Android, build in a separate directory to avoid mixing host/target artifacts
+    if is_android_target(argumentsDict):
+        build_dir = os.path.join(repoDirectory, "build-android-arm64")
+        os.makedirs(build_dir, exist_ok=True)
+        os.chdir(build_dir)
+        source_dir = repoDirectory
+    else:
+        os.chdir(repoDirectory)
+        source_dir = "."
+
     # Assume you already have the triplet (for now)
-    triplet: str = determine_triplet()
+    triplet: str = determine_triplet(argumentsDict)
     os.environ["VCPKG_TRIPLET"] = triplet
-    # Run Cmake with the /MT flag on
-    result = subprocess.run(
-        [
-            "cmake",
-            f"-DCMAKE_BUILD_TYPE={RELEASE_CONFIG}",
+
+    cmake_args = [
+        "cmake",
+        f"-DCMAKE_BUILD_TYPE={RELEASE_CONFIG}",
+        "-DCESIUM_TESTS_ENABLED=OFF",
+        "-DBUILD_SHARED_LIBS=OFF",
+        "-DCMAKE_POSITION_INDEPENDENT_CODE=ON",
+        "-DCMAKE_POLICY_VERSION_MINIMUM=3.5",
+        "-DGIT_LFS_SKIP_SMUDGE=1",
+    ]
+
+    if is_android_target(argumentsDict):
+        ndk_root = get_android_ndk_root()
+        if not ndk_root:
+            print("ERROR: Android NDK not found. Set ANDROID_NDK_ROOT.", file=sys.stderr)
+            exit(1)
+        toolchain_file = os.path.join(ndk_root, "build", "cmake", "android.toolchain.cmake")
+        if not os.path.exists(toolchain_file):
+            print(f"ERROR: NDK toolchain not found at: {toolchain_file}", file=sys.stderr)
+            exit(1)
+        android_abi = get_android_abi(argumentsDict)
+        cmake_args.extend([
+            f"-DCMAKE_TOOLCHAIN_FILE={toolchain_file}",
+            f"-DANDROID_ABI={android_abi}",
+            "-DANDROID_PLATFORM=android-29",
+            "-DCMAKE_CXX_FLAGS=-fexceptions -frtti",
+            "-DCESIUM_MSVC_STATIC_RUNTIME_ENABLED=OFF",
+        ])
+        # Set vcpkg triplet for Android
+        cmake_args.append(f"-DVCPKG_TARGET_TRIPLET={triplet}")
+        print(f"[CESIUM] Android NDK: {ndk_root}")
+        print(f"[CESIUM] Android ABI: {android_abi}")
+    else:
+        cmake_args.extend([
             "-DCESIUM_MSVC_STATIC_RUNTIME_ENABLED=ON",
-            "-DCMAKE_POLICY_VERSION_MINIMUM=3.5",
-            "-DGIT_LFS_SKIP_SMUDGE=1",
             "-DVCPKG_TRIPLET=%s" % triplet,
-            ".",
-        ]
-    )
+        ])
+
+    cmake_args.append(source_dir)
+
+    # Run Cmake
+    result = subprocess.run(cmake_args)
 
     # We pray this works haha
     if result.returncode != 0:
@@ -200,7 +301,14 @@ def configure_native(argumentsDict):
     print("Configuration completed without any errors!")
 
 
-def determine_triplet():
+def determine_triplet(argsDict=None):
+    if is_android_target(argsDict):
+        abi = get_android_abi(argsDict)
+        if abi == "arm64-v8a":
+            return "arm64-android"
+        elif abi == "x86_64":
+            return "x64-android"
+        return "arm64-android"
     if os.name == OS_WIN:
         return "x64-windows-static"
     if os.name == OS_LINUX:
@@ -210,10 +318,20 @@ def determine_triplet():
 def compile_native(argumentsDict):
     shouldBuildArg = argumentsDict.get("buildCesium", None)
     if shouldBuildArg is None:
-        shouldBuildResponse = input(
-            "Do you wanna build Cesium Native (Choose yes if it's the first install)? [y/n]"
-        )
-        shouldBuildArg = shouldBuildResponse.capitalize()[0] == "Y"
+        # For Android, default to building if native dir doesn't exist
+        if is_android_target(argumentsDict):
+            isExt = is_extension_target(argumentsDict)
+            repoDirectory = CESIUM_NATIVE_DIR_EXT if isExt else CESIUM_NATIVE_DIR_MODULE
+            repoDirectory = scons_to_abs_path(repoDirectory)
+            build_dir = os.path.join(repoDirectory, "build-android-arm64")
+            shouldBuildArg = not os.path.exists(os.path.join(build_dir, "CMakeCache.txt"))
+            if not shouldBuildArg:
+                print("[CESIUM] Android build already configured, skipping rebuild. Pass buildCesium=yes to force.")
+        else:
+            shouldBuildResponse = input(
+                "Do you wanna build Cesium Native (Choose yes if it's the first install)? [y/n]"
+            )
+            shouldBuildArg = shouldBuildResponse.capitalize()[0] == "Y"
     else:
         shouldBuildArg = (
             shouldBuildArg.upper() == "YES" or shouldBuildArg.upper() == "TRUE"
@@ -226,25 +344,36 @@ def compile_native(argumentsDict):
     configure_native(argumentsDict)
     print("Compiling Cesium Native...")
 
-    # TODO: Test if we can just do cmake --build for all platforms
     result = None
-    if os.name == OS_WIN:
+    if is_android_target(argumentsDict):
+        result = build_native_android()
+    elif os.name == OS_WIN:
         result = build_native_win()
     elif os.name == OS_LINUX:
         result = build_native_linux()
     else:
-        print(
-            "Compiling for platform %s is not yet supported!" % os.name, file=sys.stderr
-        )
-    if result.returncode != 0:
-        print("Error building Cesium Native: %s" % str(result.stderr))
+        # macOS host also uses cmake --build
+        result = build_native_linux()
+
+    if result is None or result.returncode != 0:
+        err = str(result.stderr) if result else "Unknown error"
+        print("Error building Cesium Native: %s" % err)
+        exit(1)
     print("Cleaning definitions on generated files...")
     clean_cesium_definitions()
     print("Finished building Cesium Native!")
 
 
 def build_native_linux():
-    return subprocess.run(["cmake", "--build", "."])
+    import multiprocessing
+    jobs = str(multiprocessing.cpu_count())
+    return subprocess.run(["cmake", "--build", ".", "--config", RELEASE_CONFIG, "--parallel", jobs])
+
+
+def build_native_android():
+    import multiprocessing
+    jobs = str(multiprocessing.cpu_count())
+    return subprocess.run(["cmake", "--build", ".", "--config", RELEASE_CONFIG, "--parallel", jobs])
 
 
 def build_native_win():
@@ -291,15 +420,18 @@ def clean_cesium_definitions():
     print("Finished cleaning native definitions")
 
 
-def install_additional_libs():
+def install_additional_libs(argsDict=None):
+    if is_android_target(argsDict):
+        print("[CESIUM] Skipping vcpkg install for Android — cesium-native cmake handles deps")
+        return
     print("Installing additional libraries")
     vcpkgPath = find_ezvcpkg_path()
     execExtension = ".exe" if os.name == OS_WIN else ""
     executable = "%s/%s" % (vcpkgPath, "vcpkg" + execExtension)
-    subprocess.run([executable, "install", "uriparser:%s" % (determine_triplet())])
-    subprocess.run([executable, "install", "ada-url:%s" % (determine_triplet())])
+    subprocess.run([executable, "install", "uriparser:%s" % (determine_triplet(argsDict))])
+    subprocess.run([executable, "install", "ada-url:%s" % (determine_triplet(argsDict))])
     if os.name == OS_WIN:
-        subprocess.run([executable, "install", "curl:%s" % (determine_triplet())])
+        subprocess.run([executable, "install", "curl:%s" % (determine_triplet(argsDict))])
 
 
 def find_ms_build() -> str:
@@ -353,6 +485,33 @@ def find_ezvcpkg_path() -> str:
     global ezvcpkgFoundPath
     if ezvcpkgFoundPath != "":
         return ezvcpkgFoundPath
+
+    # For Android, vcpkg is inside cesium-native's build directory
+    if is_android_target():
+        isExt = is_extension_target(ARGUMENTS)
+        repoDirectory = CESIUM_NATIVE_DIR_EXT if isExt else CESIUM_NATIVE_DIR_MODULE
+        repoDirectory = scons_to_abs_path(repoDirectory)
+        build_dir = os.path.join(repoDirectory, "build-android-arm64")
+        # ezvcpkg creates a cache dir inside the build tree
+        vcpkg_dir = os.path.join(build_dir, "vcpkg")
+        if os.path.exists(vcpkg_dir):
+            ezvcpkgFoundPath = vcpkg_dir
+            print(f"Found Android vcpkg at {ezvcpkgFoundPath}")
+            return ezvcpkgFoundPath
+        # Also check ~/.ezvcpkg for Android triplets
+        from pathlib import Path
+        home_vcpkg = (Path.home() / ".ezvcpkg").as_posix()
+        if os.path.exists(home_vcpkg):
+            subDirs = [x for x in next(os.walk(home_vcpkg))[1]]
+            subDirs.sort(reverse=True, key=lambda x: os.stat("%s/%s" % (home_vcpkg, x)).st_ctime)
+            if subDirs:
+                ezvcpkgFoundPath = "%s/%s" % (home_vcpkg, subDirs[0])
+                print(f"Found ezvcpkg at {ezvcpkgFoundPath}")
+                return ezvcpkgFoundPath
+        print("[CESIUM] Warning: vcpkg not found for Android build")
+        ezvcpkgFoundPath = build_dir  # fallback
+        return ezvcpkgFoundPath
+
     # Search the home directory
     assumedPath = "%s.ezvcpkg" % (os.path.abspath(os.sep))
     print(f"Searching vcpkg at: {assumedPath}")

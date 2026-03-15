@@ -20,7 +20,13 @@ public:
 		const char* cmd = CompileTimeConcat("open ", url).data();
 		return system(cmd);
 	}
-#elif defined(__linux__) && !defined(__ANDROID__)
+#elif defined(__ANDROID__)
+	static int SystemOpenURL(const char(&url)[N])
+	{
+		// No system shell on Android/Quest — URL opening handled by Godot OS.shell_open()
+		return 0;
+	}
+#elif defined(__linux__)
 	static constexpr auto SystemOpenURL(const char(&url)[N])
 	{
 		const char* cmd = CompileTimeConcat("xdg-open ", url).data();
